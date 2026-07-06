@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zaiqa Box POS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { inter: ['Inter','sans-serif'], display: ['Playfair Display','serif'] },
+      colors: {
+        background: '#f5f2ec', foreground: '#1a1612', card: '#ffffff',
+        primary: '#f97316', primaryfg: '#ffffff',
+        muted: '#ede8e0', mutedfg: '#6b5d4f',
+        border: '#e0d5c5', sidebar: '#1f1a14', sidebarfg: '#e8dfd0',
+        destructive: '#dc2626', accent: '#f97316'
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; background: #f5f2ec; color: #1a1612; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(107,93,79,.3); border-radius: 3px; }
+  .no-print { }
+  @media print { .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef } = React;
+const { createRoot } = ReactDOM;
+
+// ============ STORAGE ============
+const DB = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem('zb_'+key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+  },
+  set(key, val) { try { localStorage.setItem('zb_'+key, JSON.stringify(val)); } catch {}
+  }
+};
+
+// ============ SEED DATA ============
+const SEED_MENU = [
+  { id:'m1', name:'Chicken Biryani', description:'Hyderabadi style', price:220, category:'Biryani', is_available:true, is_veg:false },
+  { id:'m2', name:'Veg Biryani', description:'Dum style', price:180, category:'Biryani', is_available:true, is_veg:true },
+  { id:'m3', name:'Paneer Tikka', description:'Tandoor grilled', price:240, category:'Starters', is_available:true, is_veg:true },
+  { id:'m4', name:'Chicken Tikka', description:'Char-grilled', price:260, category:'Starters', is_available:true, is_veg:false },
+  { id:'m5', name:'Veg Manchurian', description:'Indo-Chinese', price:190, category:'Chinese', is_available:true, is_veg:true },
+  { id:'m6', name:'Chicken 65', description:'Spicy fried', price:210, category:'Chinese', is_available:true, is_veg:false },
+  { id:'m7', name:'Mutton Curry', description:'Home style', price:320, category:'Main Course', is_available:true, is_veg:false },
+  { id:'m8', name:'Dal Tadka', description:'Yellow dal', price:150, category:'Main Course', is_available:true, is_veg:true },
+  { id:'m9', name:'Butter Naan', description:'Tandoor', price:50, category:'Main Course', is_available:true, is_veg:true },
+  { id:'m10', name:'Coca-Cola', description:'Chilled', price:60, category:'Beverages', is_available:true, is_veg:true },
+  { id:'m11', name:'Fresh Lime Soda', description:'Sweet/Salty', price:70, category:'Beverages', is_available:true, is_veg:true },
+  { id:'m12', name:'Gulab Jamun', description:'2 pcs', price:80, category:'Desserts', is_available:true, is_veg:true }
+];
+const SEED_TABLES = [
+  { id:'t1', table_number:'1', capacity:4, status:'Available' },
+  { id:'t2', table_number:'2', capacity:2, status:'Available' },
+  { id:'t3', table_number:'3', capacity:6, status:'Occupied' },
+  { id:'t4', table_number:'4', capacity:4, status:'Available' },
+  { id:'t5', table_number:'5', capacity:8, status:'Reserved' }
+];
+const CATEGORIES = ['Starters','Main Course','Chinese','BBQ','Rolls & Wraps','Biryani','Beverages','Desserts','Sides'];
+
+function seedIfEmpty() {
+  if (!DB.get('menu')) DB.set('menu', SEED_MENU);
+  if (!DB.get('tables')) DB.set('tables', SEED_TABLES);
+  if (!DB.get('orders')) DB.set('orders', []);
+  if (!DB.get('settings')) DB.set('settings', { restaurant_name:'Zaiqa Box', tax_rate:5, currency:'INR', fssai:'10020042012345', address:'Main Road, City', phone:'+91 98765 43210' });
+}
+seedIfEmpty();
+
+function toIST(d) { return new Date(d).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}); }
+
+// ============ ICONS ============
+const Icon = {
+  Layout:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>),
+  Cart:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>),
+  List:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>),
+  History:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v5h5M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>),
+  Utensils:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 2v7c0 1.1.9 2 2 2h0a2 2 0 0 0 2-2V2M5 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>),
+  Grid:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>),
+  Settings:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>),
+  Plus:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>),
+  Minus:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/></svg>),
+  Trash:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>),
+  Search:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>),
+  X:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>),
+  Printer:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>),
+  TrendUp:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>),
+  Clock:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>),
+  Check:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6 9 17l-5-5"/></svg>),
+  Dollar:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>),
+  Menu:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>),
+  Logout:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>)
+};
+
+// ============ POS GUARD ============
+const GUARD_USER='ZAIQABOX', GUARD_PASS='HKGN@786';
+function PosAuthGuard({children}) {
+  const [authed,setAuthed]=useState(()=>sessionStorage.getItem('zb_pos_auth')==='1');
+  const [u,setU]=useState(''),[p,setP]=useState(''),[err,setErr]=useState('');
+  const login=(e)=>{e.preventDefault(); if(u===GUARD_USER&&p===GUARD_PASS){sessionStorage.setItem('zb_pos_auth','1');setAuthed(true);}else{setErr('Invalid credentials');}};
+  if(authed) return children;
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-100 p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-3"><span className="text-white font-bold text-2xl">Z</span></div>
+          <h1 className="text-2xl font-bold">Zaiqa Box POS</h1>
+          <p className="text-mutedfg text-sm">Enter staff credentials to access</p>
+        </div>
+        <form onSubmit={login} className="space-y-3">
+          <input value={u} onChange={e=>setU(e.target.value)} placeholder="Username" className="w-full px-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"/>
+          <input type="password" value={p} onChange={e=>setP(e.target.value)} placeholder="Password" className="w-full px-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"/>
+          {err&&<p className="text-destructive text-sm">{err}</p>}
+          <button className="w-full bg-primary text-white py-2.5 rounded-lg font-semibold hover:bg-orange-600 transition">Login</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ============ SIDEBAR ============
+const NAV=[{p:'dashboard',l:'Dashboard',i:'Layout'},{p:'new',l:'New Order',i:'Cart'},{p:'active',l:'Active Orders',i:'List'},{p:'history',l:'Order History',i:'History'},{p:'menu',l:'Menu Management',i:'Utensils'},{p:'tables',l:'Tables',i:'Grid'},{p:'settings',l:'Settings',i:'Settings'}];
+function Sidebar({page,setPage}){
+  return (
+    <aside className="fixed left-0 top-0 bottom-0 w-60 bg-sidebar text-sidebarfg flex flex-col z-40">
+      <div className="p-5 border-b border-white/10 flex items-center gap-3">
+        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center"><span className="text-white font-bold text-xl">Z</span></div>
+        <div><h1 className="font-bold text-lg leading-tight">Zaiqa Box</h1><p className="text-xs opacity-60">POS System</p></div>
+      </div>
+      <nav className="flex-1 p-3 space-y-1">
+        {NAV.map(n=>(
+          <button key={n.p} onClick={()=>setPage(n.p)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${page===n.p?'bg-primary text-white':'hover:bg-white/10'}`}>
+            {React.createElement(Icon[n.i],{className:'w-5 h-5'})}{n.l}
+          </button>
+        ))}
+      </nav>
+      <div className="p-3 border-t border-white/10">
+        <button onClick={()=>{sessionStorage.removeItem('zb_pos_auth');location.reload()}} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/10 text-red-300"><Icon.Logout className="w-5 h-5"/>Logout</button>
+      </div>
+    </aside>
+  );
+}
+
+// ============ DASHBOARD ============
+function Dashboard({goto}){
+  const orders=DB.get('orders',[]);
+  const menu=DB.get('menu',[]);
+  const today=new Date().toDateString();
+  const todayOrders=orders.filter(o=>new Date(o.created_date).toDateString()===today && o.status!=='Cancelled');
+  const revenue=todayOrders.reduce((s,o)=>s+o.total,0);
+  const activeCount=orders.filter(o=>['Pending','Preparing','Ready','Served'].includes(o.status)).length;
+  const completedCount=orders.filter(o=>o.status==='Completed').length;
+  const stats=[{l:"Today's Revenue",v:'₹'+revenue.toFixed(0),i:'Dollar',c:'text-green-600'},{l:"Today's Orders",v:todayOrders.length,i:'Cart',c:'text-blue-600'},{l:'Active Orders',v:activeCount,i:'Clock',c:'text-orange-600'},{l:'Completed',v:completedCount,i:'Check',c:'text-purple-600'}];
+  // last 7 days
+  const days=[];
+  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dstr=d.toDateString();const total=orders.filter(o=>new Date(o.created_date).toDateString()===dstr&&o.status!=='Cancelled').reduce((s,o)=>s+o.total,0);days.push({d:d.toLocaleDateString('en-IN',{weekday:'short'}),total});}
+  const maxDay=Math.max(...days.map(d=>d.total),1);
+  const payMethod={Cash:0,Card:0,UPI:0,Online:0};
+  orders.filter(o=>o.status!=='Cancelled').forEach(o=>{if(payMethod[o.payment_method]!==undefined)payMethod[o.payment_method]+=o.total;});
+  const recent=orders.slice(-10).reverse();
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
+      <p className="text-mutedfg text-sm mb-6">Business overview & analytics</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {stats.map((s,i)=>(
+          <div key={i} className="bg-white rounded-xl border border-border p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center ${s.c}`}><span className="sr-only">icon</span></div>
+            </div>
+            <p className="text-2xl font-bold">{s.v}</p>
+            <p className="text-sm text-mutedfg">{s.l}</p>
+          </div>
+        ))}
+      </div>
+      <div className="grid lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-border p-5 shadow-sm">
+          <h2 className="font-semibold mb-4">Revenue (Last 7 Days)</h2>
+          <div className="flex items-end justify-between gap-2 h-48">
+            {days.map((d,i)=>(
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full bg-primary rounded-t-lg" style={{height:(d.total/maxDay*100)+'%',minHeight:'4px'}}></div>
+                <span className="text-xs text-mutedfg">{d.d}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
+          <h2 className="font-semibold mb-4">Payment Methods</h2>
+          <div className="space-y-3">
+            {Object.entries(payMethod).map(([k,v])=>(
+              <div key={k}>
+                <div className="flex justify-between text-sm mb-1"><span>{k}</span><span className="font-semibold">₹{v.toFixed(0)}</span></div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary" style={{width:(v/(revenue||1)*100)+'%'}}></div></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="font-semibold">Recent Orders</h2>
+          <button onClick={()=>goto('history')} className="text-sm text-primary font-medium">View All</button>
+        </div>
+        {recent.length===0?<p className="text-center text-mutedfg py-8">No orders yet</p>:(
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-border text-left text-mutedfg">
+                <th className="py-2 px-2">Order #</th><th className="py-2 px-2">Type</th><th className="py-2 px-2">Items</th><th className="py-2 px-2">Total</th><th className="py-2 px-2">Status</th><th className="py-2 px-2">Time</th>
+              </tr></thead>
+              <tbody>
+                {recent.map(o=>(
+                  <tr key={o.id} className="border-b border-border/50 hover:bg-muted/30">
+                    <td className="py-2 px-2 font-medium">{o.order_number}</td>
+                    <td className="py-2 px-2">{o.order_type}</td>
+                    <td className="py-2 px-2">{o.items.length}</td>
+                    <td className="py-2 px-2 font-semibold">₹{o.total.toFixed(0)}</td>
+                    <td className="py-2 px-2"><StatusBadge status={o.status}/></td>
+                    <td className="py-2 px-2 text-mutedfg">{toIST(o.created_date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({status}){
+  const map={Pending:'bg-yellow-100 text-yellow-800',Preparing:'bg-blue-100 text-blue-800',Ready:'bg-green-100 text-green-800',Served:'bg-purple-100 text-purple-800',Completed:'bg-gray-100 text-gray-700',Cancelled:'bg-red-100 text-red-800'};
+  return <span className={`px-2 py-0.5 rounded text-xs font-medium ${map[status]||''}`}>{status}</span>;
+}
+
+// ============ NEW ORDER ============
+function NewOrder({goto}){
+  const [search,setSearch]=useState('');
+  const [cat,setCat]=useState('All');
+  const [cart,setCart]=useState([]);
+  const [receipt,setReceipt]=useState(null);
+  const [orderType,setOrderType]=useState('Dine In');
+  const [tableNumber,setTableNumber]=useState('');
+  const [customerName,setCustomerName]=useState('');
+  const [customerPhone,setCustomerPhone]=useState('');
+  const [paymentMethod,setPaymentMethod]=useState('Cash');
+  const [notes,setNotes]=useState('');
+  const [discount,setDiscount]=useState(0);
+  const [menuVersion,setMenuVersion]=useState(0);
+  const menu=DB.get('menu',[]);
+
+  const cats=['All',...new Set(menu.filter(i=>i.is_available!==false).map(i=>i.category))];
+  const filtered=menu.filter(i=>i.is_available!==false&&(cat==='All'||i.category===cat)&&(!search||i.name.toLowerCase().includes(search.toLowerCase())));
+
+  const addToCart=(item)=>setCart(c=>{const e=c.find(x=>x.item_id===item.id);if(e)return c.map(x=>x.item_id===item.id?{...x,quantity:x.quantity+1}:x);return [...c,{item_id:item.id,name:item.name,price:item.price,quantity:1}];});
+  const updateQty=(id,delta)=>setCart(c=>c.map(x=>x.item_id===id?{...x,quantity:x.quantity+delta}:x).filter(x=>x.quantity>0));
+  const removeItem=(id)=>setCart(c=>c.filter(x=>x.item_id!==id));
+
+  const subtotal=cart.reduce((s,i)=>s+i.price*i.quantity,0);
+  const tax=subtotal*0.05;
+  const total=Math.max(0,subtotal+tax-(discount||0));
+
+  const placeOrder=()=>{
+    if(cart.length===0)return;
+    const orders=DB.get('orders',[]);
+    const order={
+      id:'o'+Date.now(),
+      order_number:'ZB-'+Math.floor(Math.random()*9000+1000),
+      order_type:orderType,
+      table_number:orderType==='Dine In'?tableNumber:'',
+      customer_name:customerName,
+      customer_phone:customerPhone,
+      items:cart.map(c=>({item_id:c.item_id,name:c.name,price:c.price,quantity:c.quantity,total:c.price*c.quantity})),
+      subtotal,tax,discount:discount||0,total,
+      payment_method:paymentMethod,
+      status:orderType==='Dine In'?'Pending':'Completed',
+      notes,
+      created_date:new Date().toISOString()
+    };
+    orders.push(order);
+    DB.set('orders',orders);
+    // mark table occupied
+    if(orderType==='Dine In'&&tableNumber){
+      const tables=DB.get('tables',[]).map(t=>t.table_number===tableNumber?{...t,status:'Occupied',current_order_id:order.id}:t);
+      DB.set('tables',tables);
+    }
+    setCart([]);setCustomerName('');setCustomerPhone('');setTableNumber('');setNotes('');setDiscount(0);
+    setReceipt(order);
+  };
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex-1 min-w-0">
+        <h1 className="text-2xl font-bold mb-1">New Order</h1>
+        <p className="text-mutedfg text-sm mb-4">Select items to create an order</p>
+        <div className="relative mb-4">
+          <Icon.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mutedfg"/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search menu items..." className="w-full pl-9 pr-3 py-2 border border-border rounded-lg bg-white"/>
+        </div>
+        <div className="flex gap-2 overflow-x-auto mb-4 pb-1">
+          {cats.map(c=>(
+            <button key={c} onClick={()=>setCat(c)} className={`px-4 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition ${cat===c?'bg-primary text-white':'bg-white border border-border hover:bg-muted'}`}>{c}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+          {filtered.map(item=>(
+            <button key={item.id} onClick={()=>addToCart(item)} className="bg-white rounded-xl border border-border p-3 text-left hover:shadow-md hover:border-primary transition group">
+              <div className="aspect-square bg-muted rounded-lg mb-2 flex items-center justify-center text-3xl">{item.is_veg?'🥗':'🍖'}</div>
+              <div className="flex items-center gap-1 mb-1"><span className={`w-3 h-3 border-2 ${item.is_veg?'border-green-600':'border-red-600'}`} style={{background:item.is_veg?'#22c55e':'#ef4444'}}></span><span className="text-xs text-mutedfg">{item.is_veg?'Veg':'Non-Veg'}</span></div>
+              <p className="font-semibold text-sm truncate">{item.name}</p>
+              <p className="text-xs text-mutedfg line-clamp-1">{item.description}</p>
+              <p className="font-bold text-primary mt-1">₹{item.price}</p>
+            </button>
+          ))}
+        </div>
+        {filtered.length===0&&<p className="text-center text-mutedfg py-12">No items found</p>}
+      </div>
+
+      <div className="w-full lg:w-96">
+        <div className="bg-white rounded-xl border border-border shadow-sm flex flex-col h-full">
+          <div className="p-4 border-b flex justify-between items-center">
+            <h2 className="font-semibold flex items-center gap-2"><Icon.Cart className="w-5 h-5 text-primary"/>Current Order</h2>
+            {cart.length>0&&<button onClick={()=>setCart([])} className="text-sm text-destructive hover:underline">Clear</button>}
+          </div>
+          <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-mutedfg block mb-1">Order Type</label>
+                <select value={orderType} onChange={e=>setOrderType(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm bg-white">
+                  <option>Dine In</option><option>Takeaway</option><option>Delivery</option>
+                </select>
+              </div>
+              {orderType==='Dine In'&&<div><label className="text-xs text-mutedfg block mb-1">Table #</label><input value={tableNumber} onChange={e=>setTableNumber(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm"/></div>}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><label className="text-xs text-mutedfg block mb-1">Customer Name</label><input value={customerName} onChange={e=>setCustomerName(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm"/></div>
+              <div><label className="text-xs text-mutedfg block mb-1">Phone</label><input value={customerPhone} onChange={e=>setCustomerPhone(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm"/></div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><label className="text-xs text-mutedfg block mb-1">Payment</label><select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm bg-white"><option>Cash</option><option>Card</option><option>UPI</option><option>Online</option></select></div>
+              <div><label className="text-xs text-mutedfg block mb-1">Discount ₹</label><input type="number" min="0" value={discount} onChange={e=>setDiscount(Number(e.target.value))} className="w-full px-2 py-1.5 border border-border rounded-md text-sm"/></div>
+            </div>
+            <hr className="border-border"/>
+            {cart.length===0?<div className="text-center py-8 text-mutedfg"><Icon.Cart className="w-10 h-10 mx-auto mb-2 opacity-30"/><p className="text-sm">No items added yet</p></div>:cart.map(item=>(
+              <div key={item.item_id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{item.name}</p><p className="text-xs text-mutedfg">₹{item.price} each</p></div>
+                <div className="flex items-center gap-1">
+                  <button onClick={()=>updateQty(item.item_id,-1)} className="w-6 h-6 border border-border rounded flex items-center justify-center"><Icon.Minus className="w-3 h-3"/></button>
+                  <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
+                  <button onClick={()=>updateQty(item.item_id,1)} className="w-6 h-6 border border-border rounded flex items-center justify-center"><Icon.Plus className="w-3 h-3"/></button>
+                </div>
+                <span className="text-sm font-semibold w-14 text-right">₹{(item.price*item.quantity).toFixed(0)}</span>
+                <button onClick={()=>removeItem(item.item_id)} className="text-destructive"><Icon.Trash className="w-4 h-4"/></button>
+              </div>
+            ))}
+            {cart.length>0&&<div><label className="text-xs text-mutedfg block mb-1">Special Instructions</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm h-14 resize-none"/></div>}
+          </div>
+          {cart.length>0&&(
+            <div className="p-4 border-t space-y-2">
+              <div className="flex justify-between text-sm text-mutedfg"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
+              <div className="flex justify-between text-sm text-mutedfg"><span>Tax (5%)</span><span>₹{tax.toFixed(2)}</span></div>
+              {discount>0&&<div className="flex justify-between text-sm text-green-600"><span>Discount</span><span>-₹{discount.toFixed(2)}</span></div>}
+              <div className="flex justify-between font-bold text-base"><span>Total</span><span>₹{total.toFixed(2)}</span></div>
+              <button onClick={placeOrder} className="w-full bg-primary text-white py-2.5 rounded-lg font-semibold hover:bg-orange-600 transition">Place Order • ₹{total.toFixed(2)}</button>
+            </div>
+          )}
+        </div>
+      </div>
+      {receipt&&<ReceiptModal order={receipt} onClose={()=>{setReceipt(null);goto('active');}}/>}
+    </div>
+  );
+}
+
+// ============ RECEIPT ============
+const THANK={'Dine In':['Thank you for dining with us! We hope to see you again soon.','It was a pleasure serving you. Come back soon!'],'Takeaway':['Thank you for your order! Enjoy your meal.','Thanks for choosing Zaiqa Box. Bon appétit!'],'Delivery':['Thank you for ordering! Enjoy your delivery.','We hope you enjoy your meal. Thanks for ordering from Zaiqa Box!']};
+function getThank(t){const m=THANK[t]||THANK['Dine In'];return m[Math.floor(Math.random()*m.length)];}
+const FSSAI='10020042012345';
+function ReceiptModal({order,onClose}){
+  const ref=useRef();
+  const thank=getThank(order.order_type);
+  const printReceipt=()=>{
+    const w=window.open('','_blank','width=400,height=600');
+    w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${order.order_number}</title><meta charset="UTF-8"><style>@page{size:80mm auto;margin:0}html,body{height:auto;min-height:0}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:1.4;width:80mm;max-width:80mm;margin:0 auto;padding:8px 6px 6px 6px;color:#000;background:#fff}.center{text-align:center}.bold{font-weight:700}.big{font-size:17px;font-weight:800;letter-spacing:1.2px}.dashed{border-top:1px dashed #000;margin:6px 0}.solid{border-top:2px solid #000;margin:6px 0}.row{display:flex;justify-content:space-between;margin:2px 0}.total-row{display:flex;justify-content:space-between;font-weight:700;font-size:13px;padding:3px 0}.grand-total{font-size:15px;font-weight:800;padding:4px 0}.order-num{font-weight:800;font-size:13px}.footer{text-align:center;margin-top:8px;font-size:11px;line-height:1.5}.watermark{font-size:10px;font-weight:600;text-align:center;color:#333;margin-top:10px;border-top:1px dotted #999;padding-top:6px}.watermark a{color:#333;text-decoration:none;font-weight:700}</style></head><body>
+<div class="center"><div class="big">ZAIQA BOX</div><div style="font-size:11px;margin-top:2px;font-weight:500">Restaurant & Cafe</div><div style="font-size:10px;margin-top:3px;color:#555">FSSAI Lic. No.: ${FSSAI}</div></div>
+<div class="dashed"></div>
+<div class="row"><span>Order #:</span><span class="order-num">${order.order_number}</span></div>
+<div class="row"><span>Date:</span><span class="bold">${toIST(order.created_date)}</span></div>
+<div class="row"><span>Type:</span><span class="bold">${order.order_type}</span></div>
+${order.table_number?`<div class="row"><span>Table:</span><span class="bold">${order.table_number}</span></div>`:''}
+${order.customer_name?`<div class="row"><span>Customer:</span><span class="bold">${order.customer_name}</span></div>`:''}
+${order.payment_method?`<div class="row"><span>Payment:</span><span class="bold">${order.payment_method}</span></div>`:''}
+<div class="dashed"></div>
+${order.items.map(i=>`<div class="row"><span style="font-weight:500">${i.name} x${i.quantity}</span><span style="font-weight:600">₹${(i.price*i.quantity).toFixed(2)}</span></div>`).join('')}
+<div class="dashed"></div>
+<div class="row"><span>Subtotal</span><span>₹${order.subtotal.toFixed(2)}</span></div>
+<div class="row"><span>GST (5%)</span><span>₹${order.tax.toFixed(2)}</span></div>
+${order.discount>0?`<div class="row"><span>Discount</span><span>-₹${order.discount.toFixed(2)}</span></div>`:''}
+<div class="solid"></div>
+<div class="total-row grand-total"><span>GRAND TOTAL</span><span>₹${order.total.toFixed(2)}</span></div>
+<div class="solid"></div>
+<div class="footer"><div>${thank}</div><div style="margin-top:4px">*** Prices inclusive of all taxes ***</div></div>
+<div class="watermark">Zaiqa Box POS &mdash; Powered by <a href="https://www.faizcodex.com">www.faizcodex.com</a></div>
+</body></html>`);
+    w.document.close();setTimeout(()=>w.print(),300);
+  };
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 no-print" onClick={onClose}>
+      <div className="bg-white rounded-xl max-w-sm w-full max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="p-4 border-b flex justify-between items-center">
+          <h2 className="font-semibold">Receipt Preview</h2>
+          <div className="flex gap-2"><button onClick={printReceipt} className="px-3 py-1.5 border border-border rounded-md text-sm flex items-center gap-1"><Icon.Printer className="w-4 h-4"/>Print</button><button onClick={onClose} className="p-1.5"><Icon.X className="w-4 h-4"/></button></div>
+        </div>
+        <div className="p-4 font-mono text-xs">
+          <div className="text-center"><p className="text-base font-bold tracking-widest">ZAIQA BOX</p><p className="text-[10px]">Restaurant & Cafe</p><p className="text-[9px] text-gray-500">FSSAI Lic. No.: {FSSAI}</p></div>
+          <div className="border-t border-dashed border-gray-400 my-2"/>
+          <div className="space-y-0.5">
+            <div className="flex justify-between"><span>Order #:</span><span className="font-bold">{order.order_number}</span></div>
+            <div className="flex justify-between"><span>Date:</span><span>{toIST(order.created_date)}</span></div>
+            <div className="flex justify-between"><span>Type:</span><span>{order.order_type}</span></div>
+            {order.table_number&&<div className="flex justify-between"><span>Table:</span><span>{order.table_number}</span></div>}
+            {order.customer_name&&<div className="flex justify-between"><span>Customer:</span><span>{order.customer_name}</span></div>}
+            {order.payment_method&&<div className="flex justify-between"><span>Payment:</span><span>{order.payment_method}</span></div>}
+          </div>
+          <div className="border-t border-dashed border-gray-400 my-2"/>
+          {order.items.map((i,idx)=>(<div key={idx} className="flex text-[10px]"><span className="flex-1">{i.name} x{i.quantity}</span><span>₹{(i.price*i.quantity).toFixed(2)}</span></div>))}
+          <div className="border-t border-dashed border-gray-400 my-2"/>
+          <div className="space-y-0.5">
+            <div className="flex justify-between"><span>Subtotal</span><span>₹{order.subtotal.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span>GST (5%)</span><span>₹{order.tax.toFixed(2)}</span></div>
+            {order.discount>0&&<div className="flex justify-between text-green-700"><span>Discount</span><span>-₹{order.discount.toFixed(2)}</span></div>}
+          </div>
+          <div className="border-t border-gray-400 my-1"/>
+          <div className="flex justify-between font-bold text-sm"><span>GRAND TOTAL</span><span>₹{order.total.toFixed(2)}</span></div>
+          <div className="border-t border-gray-400 my-1"/>
+          <div className="text-center text-[10px] mt-2"><p>{thank}</p><p className="text-[9px] text-gray-500 mt-1">*** Prices inclusive of all taxes ***</p></div>
+          <div className="border-t border-dotted border-gray-400 mt-3 pt-2 text-center text-[11px] font-semibold text-gray-600">Zaiqa Box POS — Powered by <span className="font-bold">www.fascodex.com</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ ACTIVE ORDERS ============
+const STATUS_FLOW=['Pending','Preparing','Ready','Served','Completed'];
+function ActiveOrders({goto}){
+  const [filter,setFilter]=useState('All');
+  const [receipt,setReceipt]=useState(null);
+  const [tick,setTick]=useState(0);
+  const orders=DB.get('orders',[]).slice().reverse();
+
+  const counts={All:orders.length,Pending:0,Preparing:0,Ready:0,Served:0};
+  orders.forEach(o=>{if(counts[o.status]!==undefined)counts[o.status]++;});
+  const filtered=filter==='All'?orders:orders.filter(o=>o.status===filter);
+
+  const advance=(id)=>{
+    const all=DB.get('orders',[]).map(o=>{if(o.id===id){const idx=STATUS_FLOW.indexOf(o.status);return{...o,status:STATUS_FLOW[Math.min(idx+1,STATUS_FLOW.length-1)]};}return o;});
+    DB.set('orders',all);setTick(t=>t+1);
+    // free table when completed
+    const completed=all.find(o=>o.id===id&&o.status==='Completed');
+    if(completed&&completed.table_number){const tbs=DB.get('tables',[]).map(t=>t.current_order_id===id?{...t,status:'Available',current_order_id:null}:t);DB.set('tables',tbs);}
+  };
+  const cancel=(id)=>{const all=DB.get('orders',[]).map(o=>o.id===id?{...o,status:'Cancelled'}:o);DB.set('orders',all);setTick(t=>t+1);
+    const o=orders.find(x=>x.id===id);if(o&&o.table_number){const tbs=DB.get('tables',[]).map(t=>t.table_number===o.table_number?{...t,status:'Available',current_order_id:null}:t);DB.set('tables',tbs);}};
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-1">Active Orders</h1>
+      <p className="text-mutedfg text-sm mb-4">Manage and track current orders</p>
+      <div className="flex gap-2 mb-4 overflow-x-auto">
+        {['All','Pending','Preparing','Ready','Served'].map(s=>(
+          <button key={s} onClick={()=>setFilter(s)} className={`px-4 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap ${filter===s?'bg-primary text-white':'bg-white border border-border hover:bg-muted'}`}>{s} ({counts[s]||0})</button>
+        ))}
+      </div>
+      {filtered.length===0?<div className="text-center py-16 text-mutedfg"><Icon.Cart className="w-16 h-16 mx-auto mb-3 opacity-20"/><p>No active orders</p></div>:(
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map(o=>(
+            <div key={o.id} className="bg-white rounded-xl border border-border p-4 shadow-sm">
+              <div className="flex justify-between items-start mb-2">
+                <div><p className="font-bold">{o.order_number}</p><p className="text-xs text-mutedfg">{toIST(o.created_date)}</p></div>
+                <StatusBadge status={o.status}/>
+              </div>
+              <div className="text-sm space-y-0.5 mb-3">
+                <p><span className="text-mutedfg">Type:</span> {o.order_type}</p>
+                {o.table_number&&<p><span className="text-mutedfg">Table:</span> {o.table_number}</p>}
+                {o.customer_name&&<p><span className="text-mutedfg">Customer:</span> {o.customer_name}</p>}
+              </div>
+              <div className="border-t border-border pt-2 mb-3 space-y-1">
+                {o.items.map((i,idx)=><div key={idx} className="flex justify-between text-sm"><span>{i.name} x{i.quantity}</span><span>₹{(i.price*i.quantity).toFixed(0)}</span></div>)}
+              </div>
+              <div className="flex justify-between font-bold mb-3"><span>Total</span><span>₹{o.total.toFixed(0)}</span></div>
+              <div className="flex gap-2">
+                <button onClick={()=>setReceipt(o)} className="flex-1 px-3 py-1.5 border border-border rounded-md text-sm hover:bg-muted">Receipt</button>
+                {o.status!=='Completed'&&o.status!=='Cancelled'&&<button onClick={()=>advance(o.id)} className="flex-1 px-3 py-1.5 bg-primary text-white rounded-md text-sm">Advance →</button>}
+                {o.status!=='Cancelled'&&o.status!=='Completed'&&<button onClick={()=>cancel(o.id)} className="px-3 py-1.5 text-destructive border border-destructive rounded-md text-sm">Cancel</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {receipt&&<ReceiptModal order={receipt} onClose={()=>setReceipt(null)}/>}
+    </div>
+  );
+}
+
+// ============ ORDER HISTORY ============
+function OrderHistory(){
+  const [search,setSearch]=useState('');
+  const [receipt,setReceipt]=useState(null);
+  const orders=DB.get('orders',[]).slice().reverse();
+  const filtered=orders.filter(o=>!search||o.order_number.toLowerCase().includes(search.toLowerCase())||(o.customer_name||'').toLowerCase().includes(search.toLowerCase())||(o.customer_phone||'').includes(search));
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-1">Order History</h1>
+      <p className="text-mutedfg text-sm mb-4">All past orders</p>
+      <div className="relative mb-4">
+        <Icon.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mutedfg"/>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search order #, customer, phone..." className="w-full pl-9 pr-3 py-2 border border-border rounded-lg bg-white"/>
+      </div>
+      <div className="bg-white rounded-xl border border-border shadow-sm overflow-x-auto">
+        {filtered.length===0?<p className="text-center text-mutedfg py-12">No orders found</p>:(
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-border text-left text-mutedfg">
+              <th className="py-3 px-4">Order #</th><th className="py-3 px-4">Type</th><th className="py-3 px-4">Customer</th><th className="py-3 px-4">Items</th><th className="py-3 px-4">Total</th><th className="py-3 px-4">Payment</th><th className="py-3 px-4">Status</th><th className="py-3 px-4">Date</th><th className="py-3 px-4"></th>
+            </tr></thead>
+            <tbody>
+              {filtered.map(o=>(
+                <tr key={o.id} className="border-b border-border/50 hover:bg-muted/30">
+                  <td className="py-3 px-4 font-medium">{o.order_number}</td>
+                  <td className="py-3 px-4">{o.order_type}</td>
+                  <td className="py-3 px-4">{o.customer_name||'-'}</td>
+                  <td className="py-3 px-4">{o.items.length}</td>
+                  <td className="py-3 px-4 font-semibold">₹{o.total.toFixed(0)}</td>
+                  <td className="py-3 px-4">{o.payment_method||'-'}</td>
+                  <td className="py-3 px-4"><StatusBadge status={o.status}/></td>
+                  <td className="py-3 px-4 text-mutedfg text-xs">{toIST(o.created_date)}</td>
+                  <td className="py-3 px-4"><button onClick={()=>setReceipt(o)} className="text-primary text-xs hover:underline">View</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {receipt&&<ReceiptModal order={receipt} onClose={()=>setReceipt(null)}/>}
+    </div>
+  );
+}
+
+// ============ MENU MANAGEMENT ============
+function MenuManagement(){
+  const [items,setItems]=useState(DB.get('menu',[]));
+  const [search,setSearch]=useState('');
+  const [cat,setCat]=useState('All');
+  const [editing,setEditing]=useState(null);
+  const [showForm,setShowForm]=useState(false);
+
+  const save=(item)=>{
+    const menu=DB.get('menu',[]);
+    if(item.id){const idx=menu.findIndex(m=>m.id===item.id);if(idx>=0)menu[idx]=item;}else{menu.push({...item,id:'m'+Date.now()});}
+    DB.set('menu',menu);setItems(DB.get('menu',[]));setShowForm(false);setEditing(null);
+  };
+  const del=(id)=>{if(!confirm('Delete this item?'))return;const menu=DB.get('menu',[]).filter(m=>m.id!==id);DB.set('menu',menu);setItems(DB.get('menu',[]));};
+  const toggleAvail=(id)=>{const menu=DB.get('menu',[]).map(m=>m.id===id?{...m,is_available:!m.is_available}:m);DB.set('menu',menu);setItems(DB.get('menu',[]));};
+
+  const cats=['All',...new Set(items.map(i=>i.category))];
+  const filtered=items.filter(i=>(cat==='All'||i.category===cat)&&(!search||i.name.toLowerCase().includes(search.toLowerCase())));
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <div><h1 className="text-2xl font-bold mb-1">Menu Management</h1><p className="text-mutedfg text-sm">Add, edit, remove menu items</p></div>
+        <button onClick={()=>{setEditing(null);setShowForm(true);}} className="bg-primary text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"><Icon.Plus className="w-4 h-4"/>Add Item</button>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1"><Icon.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mutedfg"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..." className="w-full pl-9 pr-3 py-2 border border-border rounded-lg bg-white"/></div>
+        <select value={cat} onChange={e=>setCat(e.target.value)} className="px-3 py-2 border border-border rounded-lg bg-white"><option>All</option>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select>
+      </div>
+      <div className="bg-white rounded-xl border border-border shadow-sm overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-border text-left text-mutedfg"><th className="py-3 px-4">Item</th><th className="py-3 px-4">Category</th><th className="py-3 px-4">Price</th><th className="py-3 px-4">Veg</th><th className="py-3 px-4">Available</th><th className="py-3 px-4"></th></tr></thead>
+          <tbody>
+            {filtered.map(i=>(
+              <tr key={i.id} className="border-b border-border/50">
+                <td className="py-3 px-4 font-medium">{i.name}</td>
+                <td className="py-3 px-4">{i.category}</td>
+                <td className="py-3 px-4 font-semibold">₹{i.price}</td>
+                <td className="py-3 px-4"><span className={`inline-block w-4 h-4 border-2 ${i.is_veg?'border-green-600':'border-red-600'}`} style={{background:i.is_veg?'#22c55e':'#ef4444'}}></span></td>
+                <td className="py-3 px-4"><button onClick={()=>toggleAvail(i.id)} className={`px-2 py-0.5 rounded text-xs ${i.is_available?'bg-green-100 text-green-800':'bg-gray-200 text-gray-600'}`}>{i.is_available?'Available':'Off'}</button></td>
+                <td className="py-3 px-4"><div className="flex gap-2"><button onClick={()=>{setEditing(i);setShowForm(true);}} className="text-blue-600 text-xs">Edit</button><button onClick={()=>del(i.id)} className="text-destructive text-xs">Delete</button></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {showForm&&<MenuForm item={editing} onSave={save} onClose={()=>{setShowForm(false);setEditing(null);}}/>}
+    </div>
+  );
+}
+
+function MenuForm({item,onSave,onClose}){
+  const [f,setF]=useState(item||{name:'',description:'',price:'',category:'Starters',is_available:true,is_veg:false});
+  const submit=(e)=>{e.preventDefault();onSave({...f,price:Number(f.price)});};
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={e=>e.stopPropagation()}>
+        <h2 className="font-semibold mb-4">{item?'Edit Item':'Add Item'}</h2>
+        <form onSubmit={submit} className="space-y-3">
+          <input required value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="Name" className="w-full px-3 py-2 border border-border rounded-lg"/>
+          <input value={f.description} onChange={e=>setF({...f,description:e.target.value})} placeholder="Description" className="w-full px-3 py-2 border border-border rounded-lg"/>
+          <input required type="number" value={f.price} onChange={e=>setF({...f,price:e.target.value})} placeholder="Price" className="w-full px-3 py-2 border border-border rounded-lg"/>
+          <select value={f.category} onChange={e=>setF({...f,category:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg bg-white">{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={f.is_veg} onChange={e=>setF({...f,is_veg:e.target.checked})}/>Vegetarian</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={f.is_available} onChange={e=>setF({...f,is_available:e.target.checked})}/>Available</label>
+          </div>
+          <div className="flex gap-2 pt-2"><button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg">Cancel</button><button type="submit" className="flex-1 px-4 py-2 bg-primary text-white rounded-lg">Save</button></div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ============ TABLES ============
+function Tables(){
+  const [tables,setTables]=useState(DB.get('tables',[]));
+  const [editing,setEditing]=useState(null);
+  const [showForm,setShowForm]=useState(false);
+  const colors={Available:'border-green-500 bg-green-50',Occupied:'border-red-500 bg-red-50',Reserved:'border-yellow-500 bg-yellow-50'};
+  const save=(t)=>{const all=DB.get('tables',[]);if(t.id){const idx=all.findIndex(x=>x.id===t.id);if(idx>=0)all[idx]=t;}else{all.push({...t,id:'t'+Date.now()});}DB.set('tables',all);setTables(DB.get('tables',[]));setShowForm(false);setEditing(null);};
+  const del=(id)=>{if(!confirm('Delete this table?'))return;DB.set('tables',DB.get('tables',[]).filter(t=>t.id!==id));setTables(DB.get('tables',[]));};
+  const cycle=(t)=>{const ns=t.status==='Available'?'Occupied':t.status==='Occupied'?'Reserved':'Available';const all=DB.get('tables',[]).map(x=>x.id===t.id?{...x,status:ns}:x);DB.set('tables',all);setTables(DB.get('tables',[]));};
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <div><h1 className="text-2xl font-bold mb-1">Tables</h1><p className="text-mutedfg text-sm">{tables.length} tables</p></div>
+        <button onClick={()=>{setEditing(null);setShowForm(true);}} className="bg-primary text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"><Icon.Plus className="w-4 h-4"/>Add Table</button>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {tables.map(t=>(
+          <div key={t.id} className={`bg-white rounded-xl border-2 p-4 shadow-sm ${colors[t.status]}`}>
+            <div className="flex justify-between items-start mb-2">
+              <div><p className="font-bold text-lg">Table {t.table_number}</p><p className="text-xs text-mutedfg">Seats {t.capacity}</p></div>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.status==='Available'?'bg-green-200 text-green-800':t.status==='Occupied'?'bg-red-200 text-red-800':'bg-yellow-200 text-yellow-800'}`}>{t.status}</span>
+            </div>
+            <div className="flex gap-1 mt-3">
+              <button onClick={()=>cycle(t)} className="flex-1 text-xs px-2 py-1 border border-border rounded">Toggle</button>
+              <button onClick={()=>{setEditing(t);setShowForm(true);}} className="text-xs px-2 py-1 border border-border rounded">Edit</button>
+              <button onClick={()=>del(t.id)} className="text-destructive text-xs px-2 py-1 border border-destructive rounded">Del</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {showForm&&<TableForm table={editing} onSave={save} onClose={()=>{setShowForm(false);setEditing(null);}}/>}
+    </div>
+  );
+}
+function TableForm({table,onSave,onClose}){
+  const [f,setF]=useState(table||{table_number:'',capacity:4,status:'Available'});
+  const submit=(e)=>{e.preventDefault();onSave({...f,capacity:Number(f.capacity)});};
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={e=>e.stopPropagation()}>
+        <h2 className="font-semibold mb-4">{table?'Edit Table':'Add Table'}</h2>
+        <form onSubmit={submit} className="space-y-3">
+          <input required value={f.table_number} onChange={e=>setF({...f,table_number:e.target.value})} placeholder="Table Number" className="w-full px-3 py-2 border border-border rounded-lg"/>
+          <input required type="number" value={f.capacity} onChange={e=>setF({...f,capacity:e.target.value})} placeholder="Capacity" className="w-full px-3 py-2 border border-border rounded-lg"/>
+          <select value={f.status} onChange={e=>setF({...f,status:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg bg-white"><option>Available</option><option>Occupied</option><option>Reserved</option></select>
+          <div className="flex gap-2 pt-2"><button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg">Cancel</button><button type="submit" className="flex-1 px-4 py-2 bg-primary text-white rounded-lg">Save</button></div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ============ SETTINGS ============
+function Settings(){
+  const [s,setS]=useState(DB.get('settings',{}));
+  const [saved,setSaved]=useState(false);
+  const save=(e)=>{e.preventDefault();DB.set('settings',s);setSaved(true);setTimeout(()=>setSaved(false),2000);};
+  return (
+    <div className="max-w-2xl">
+      <h1 className="text-2xl font-bold mb-1">Settings</h1>
+      <p className="text-mutedfg text-sm mb-6">Restaurant configuration</p>
+      <form onSubmit={save} className="bg-white rounded-xl border border-border p-6 shadow-sm space-y-4">
+        <div><label className="text-sm font-medium block mb-1">Restaurant Name</label><input value={s.restaurant_name||''} onChange={e=>setS({...s,restaurant_name:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
+        <div><label className="text-sm font-medium block mb-1">Address</label><input value={s.address||''} onChange={e=>setS({...s,address:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
+        <div><label className="text-sm font-medium block mb-1">Phone</label><input value={s.phone||''} onChange={e=>setS({...s,phone:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
+        <div><label className="text-sm font-medium block mb-1">FSSAI License No.</label><input value={s.fssai||''} onChange={e=>setS({...s,fssai:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="text-sm font-medium block mb-1">Tax Rate (%)</label><input type="number" value={s.tax_rate||0} onChange={e=>setS({...s,tax_rate:Number(e.target.value)})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
+          <div><label className="text-sm font-medium block mb-1">Currency</label><select value={s.currency||'INR'} onChange={e=>setS({...s,currency:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg bg-white"><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></div>
+        </div>
+        <div className="flex gap-2 pt-2">
+          <button type="submit" className="px-6 py-2 bg-primary text-white rounded-lg font-semibold">Save Settings</button>
+          {saved&&<span className="text-green-600 text-sm self-center">✓ Saved</span>}
+        </div>
+      </form>
+      <div className="mt-6 bg-white rounded-xl border border-border p-6 shadow-sm">
+        <h2 className="font-semibold mb-2">Data Management</h2>
+        <p className="text-sm text-mutedfg mb-3">All data is stored locally in your browser (localStorage).</p>
+        <div className="flex gap-2">
+          <button onClick={()=>{const data={menu:DB.get('menu'),orders:DB.get('orders'),tables:DB.get('tables'),settings:DB.get('settings')};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='zaiqabox-backup.json';a.click();}} className="px-4 py-2 border border-border rounded-lg text-sm">Export Data</button>
+          <button onClick={()=>{if(confirm('Reset ALL data? This cannot be undone.')){localStorage.removeItem('zb_menu');localStorage.removeItem('zb_orders');localStorage.removeItem('zb_tables');location.reload();}}} className="px-4 py-2 border border-destructive text-destructive rounded-lg text-sm">Reset All Data</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ APP ============
+function App(){
+  const [page,setPage]=useState('dashboard');
+  return (
+    <PosAuthGuard>
+      <div className="min-h-screen bg-background">
+        <Sidebar page={page} setPage={setPage}/>
+        <main className="ml-0 lg:ml-60 p-4 md:p-6">
+          {page==='dashboard'&&<Dashboard goto={setPage}/>}
+          {page==='new'&&<NewOrder goto={setPage}/>}
+          {page==='active'&&<ActiveOrders goto={setPage}/>}
+          {page==='history'&&<OrderHistory/>}
+          {page==='menu'&&<MenuManagement/>}
+          {page==='tables'&&<Tables/>}
+          {page==='settings'&&<Settings/>}
+        </main>
+      </div>
+    </PosAuthGuard>
+  );
+}
+
+createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
