@@ -2,748 +2,1128 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>Zaiqa Box — Restaurant POS</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zaiqa Box POS</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --accent:#f97316;
+    --accent-dark:#ea6a0e;
+    --sidebar:#1c1410;
+    --sidebar-hover:#2a201a;
+    --bg:#faf7f1;
+    --card:#ffffff;
+    --border:#e7e1d6;
+    --text:#1f2420;
+    --muted:#8a8378;
+    --danger:#ef4444;
+    --danger-bg:#fde2e1;
+    --success:#16a34a;
+    --success-bg:#d9f3e3;
+    --warn:#eab308;
+    --warn-bg:#fdf3cf;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  .hidden{display:none !important;}
+  input,select,textarea,button{font-family:inherit;font-size:14px;}
+  ::placeholder{color:#b5ada0;}
+
+  /* ---------- LOGIN ---------- */
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1c1410,#3a2a1e);}
+  .login-card{background:var(--card);width:380px;max-width:90vw;border-radius:16px;padding:36px 32px;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+  .login-logo{display:flex;align-items:center;gap:12px;margin-bottom:22px;}
+  .logo-badge{width:44px;height:44px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;}
+  .login-logo h1{font-size:19px;margin:0;}
+  .login-logo p{font-size:12px;color:var(--muted);margin:0;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;}
+  .field input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;outline:none;background:#fdfcfa;}
+  .field input:focus{border-color:var(--accent);}
+  .btn{border:none;border-radius:8px;padding:11px 16px;font-weight:600;cursor:pointer;transition:.15s;}
+  .btn-primary{background:var(--accent);color:#fff;width:100%;}
+  .btn-primary:hover{background:var(--accent-dark);}
+  .login-hint{margin-top:16px;background:#fef4ec;border:1px dashed #f3c79a;border-radius:8px;padding:10px 12px;font-size:12px;color:#7c4a1e;line-height:1.5;}
+  .login-error{color:var(--danger);font-size:13px;margin:-6px 0 12px;display:none;}
+
+  /* ---------- APP SHELL ---------- */
+  #app{display:flex;min-height:100vh;}
+  .sidebar{width:230px;background:var(--sidebar);color:#e6dfd6;display:flex;flex-direction:column;flex-shrink:0;transition:width .2s;}
+  .sidebar.collapsed{width:76px;}
+  .sidebar.collapsed .nav-label, .sidebar.collapsed .brand-text, .sidebar.collapsed .collapse-text{display:none;}
+  .brand{display:flex;align-items:center;gap:10px;padding:20px 18px;border-bottom:1px solid #322820;}
+  .brand-badge{width:36px;height:36px;border-radius:9px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;}
+  .brand-text h2{font-size:15px;margin:0;color:#fff;}
+  .brand-text p{font-size:11px;margin:0;color:#a89d8e;}
+  nav{flex:1;padding:12px 10px;overflow-y:auto;}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;cursor:pointer;color:#cfc6b9;margin-bottom:4px;font-size:14px;font-weight:500;}
+  .nav-item svg{width:18px;height:18px;flex-shrink:0;}
+  .nav-item:hover{background:var(--sidebar-hover);}
+  .nav-item.active{background:var(--accent);color:#fff;}
+  .sidebar-bottom{padding:10px;border-top:1px solid #322820;}
+  .collapse-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;color:#a89d8e;cursor:pointer;border-radius:10px;font-size:13px;}
+  .collapse-btn:hover{background:var(--sidebar-hover);}
+  .logout-item{display:flex;align-items:center;gap:10px;padding:10px 12px;color:#e79a9a;cursor:pointer;border-radius:10px;font-size:14px;margin-top:2px;}
+  .logout-item:hover{background:#3a201d;}
+
+  .main{flex:1;padding:28px 32px;overflow-x:auto;}
+  .page-title{font-size:24px;font-weight:700;margin:0 0 2px;}
+  .page-sub{color:var(--muted);font-size:13.5px;margin:0 0 22px;}
+  .page-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+  .grid{display:grid;gap:18px;}
+  .grid-4{grid-template-columns:repeat(4,1fr);}
+  .grid-2{grid-template-columns:1.2fr 1fr;}
+  @media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}}
+
+  .stat-card{display:flex;justify-content:space-between;align-items:flex-start;}
+  .stat-card .label{font-size:13px;color:var(--muted);margin-bottom:6px;}
+  .stat-card .value{font-size:26px;font-weight:700;}
+  .stat-card .delta{font-size:12px;color:var(--success);margin-top:6px;}
+  .stat-icon{width:42px;height:42px;border-radius:10px;background:#fde9d8;color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:12.5px;color:var(--muted);font-weight:600;padding:10px 8px;border-bottom:1px solid var(--border);}
+  td{padding:12px 8px;font-size:13.5px;border-bottom:1px solid #f1ede4;}
+  tr:last-child td{border-bottom:none;}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+  .badge-pending{background:var(--warn-bg);color:#92720a;}
+  .badge-completed{background:var(--success-bg);color:#127a3f;}
+  .badge-cancelled{background:var(--danger-bg);color:#b23434;}
+  .badge-preparing{background:#dfeafe;color:#1d5fb8;}
+  .badge-ready{background:#e6ddfb;color:#6238b0;}
+  .badge-served{background:#e2e2e2;color:#444;}
+  .badge-type{background:#f0ede6;color:#555;}
+
+  /* New order layout */
+  .order-layout{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:flex-start;}
+  @media(max-width:1000px){.order-layout{grid-template-columns:1fr;}}
+  .search-row{display:flex;gap:10px;margin-bottom:14px;}
+  .search-row input{flex:1;padding:11px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;}
+  .cat-pills{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .pill{padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:#555;}
+  .pill.active{background:#1f2420;color:#fff;border-color:#1f2420;}
+  .menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+  .menu-item-card{border:1px solid var(--border);border-radius:12px;padding:14px;background:#fff;display:flex;justify-content:space-between;gap:10px;}
+  .menu-item-card .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;}
+  .dot-veg{background:#16a34a;}
+  .dot-nonveg{background:#dc2626;}
+  .menu-item-card h4{margin:0 0 4px;font-size:14.5px;}
+  .menu-item-card p{margin:0;font-size:12px;color:var(--muted);max-width:150px;}
+  .menu-item-card .price{font-weight:700;margin-top:6px;font-size:13.5px;}
+  .add-btn{width:34px;height:34px;border-radius:50%;background:#fbe6d2;color:var(--accent);border:none;font-size:20px;cursor:pointer;flex-shrink:0;align-self:flex-start;}
+  .add-btn:hover{background:var(--accent);color:#fff;}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 10px;color:var(--muted);text-align:center;}
+
+  .order-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .order-panel-head h3{margin:0;display:flex;align-items:center;gap:8px;font-size:16px;}
+  .clear-link{color:var(--danger);font-size:13px;cursor:pointer;font-weight:600;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+  .field-sm label{font-size:12.5px;font-weight:600;display:block;margin-bottom:5px;color:#444;}
+  .field-sm input,.field-sm select,.field-sm textarea{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:#fdfcfa;}
+  .cart-line{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1ede4;}
+  .cart-line .name{font-weight:600;font-size:13.5px;}
+  .cart-line .unit{font-size:11.5px;color:var(--muted);}
+  .qty-ctrl{display:flex;align-items:center;gap:8px;}
+  .qty-ctrl button{width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:15px;line-height:1;}
+  .trash-btn{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;}
+  .totals-row{display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;color:#555;}
+  .totals-row.grand{font-size:16px;font-weight:700;color:var(--text);border-top:1px solid var(--border);margin-top:8px;padding-top:10px;}
+  .place-order-btn{width:100%;background:var(--accent);color:#fff;border:none;padding:14px;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px;}
+  .place-order-btn:hover{background:var(--accent-dark);}
+  .place-order-btn:disabled{background:#d8cfc2;cursor:not-allowed;}
+
+  /* Active orders */
+  .tabs{display:flex;gap:6px;background:#f1ede4;padding:4px;border-radius:10px;width:fit-content;margin-bottom:20px;}
+  .tab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:#666;}
+  .tab.active{background:#fff;color:#1f2420;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .order-cards{display:flex;flex-direction:column;gap:14px;}
+  .order-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;}
+  .order-card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+  .order-card-head .left{display:flex;align-items:center;gap:10px;}
+  .order-card-head h4{margin:0;font-size:16px;}
+  .order-card small{color:var(--muted);}
+  .order-items-line{font-size:13.5px;color:#444;margin:10px 0;}
+  .order-card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #f1ede4;}
+  .order-total{font-weight:700;font-size:16px;}
+  .action-row{display:flex;gap:8px;}
+  .btn-sm{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--border);background:#fff;cursor:pointer;}
+  .btn-sm.orange{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .btn-sm.red{background:var(--danger);color:#fff;border-color:var(--danger);}
+  .btn-sm.dark{background:#1f2420;color:#fff;border-color:#1f2420;}
+
+  /* Menu management */
+  .top-action-row{display:flex;justify-content:flex-end;margin-bottom:16px;}
+  .btn-add{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .icon-btn{background:none;border:none;cursor:pointer;font-size:15px;color:#555;margin-right:8px;}
+  .icon-btn.danger{color:var(--danger);}
+  .toggle{padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;border:none;cursor:pointer;}
+  .toggle.on{background:var(--accent);color:#fff;}
+  .toggle.off{background:#eee;color:#888;}
+
+  /* modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,15,10,.55);display:flex;align-items:center;justify-content:center;z-index:200;}
+  .modal{background:#fff;border-radius:14px;padding:26px;width:440px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+  .modal h3{margin-top:0;}
+  .modal-close{float:right;cursor:pointer;font-size:18px;color:#888;background:none;border:none;}
+  .form-row{margin-bottom:14px;}
+  .form-row label{display:block;font-size:12.5px;font-weight:600;margin-bottom:5px;}
+  .form-row input,.form-row select,.form-row textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;}
+  .form-two{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .radio-row{display:flex;gap:16px;font-size:13px;}
+
+  /* receipt preview modal */
+  .receipt-modal{width:360px;padding:0;overflow:hidden;}
+  .receipt-modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--border);}
+  .receipt-modal-head h3{margin:0;font-size:16px;}
+  .receipt-modal-actions{display:flex;gap:8px;align-items:center;}
+  .receipt-body-wrap{padding:16px;background:#f4f1ea;}
+  #receiptPreview{background:#fff;padding:14px 16px;font-family:'Courier New',monospace;font-size:12.5px;color:#111;width:100%;box-sizing:border-box;}
+  #receiptPreview .r-center{text-align:center;}
+  #receiptPreview .r-bold{font-weight:700;}
+  #receiptPreview hr{border:none;border-top:1px dashed #999;margin:8px 0;}
+  #receiptPreview table{width:100%;}
+  #receiptPreview td{padding:2px 0;font-size:12px;border:none;}
+  #receiptPreview .r-row{display:flex;justify-content:space-between;}
+
+  .toast{position:fixed;bottom:24px;right:24px;background:#1f2420;color:#fff;padding:12px 18px;border-radius:10px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:300;opacity:0;transform:translateY(10px);transition:.25s;}
+  .toast.show{opacity:1;transform:translateY(0);}
+
+  /* dashboard charts (pure css) */
+  .pie{width:170px;height:170px;border-radius:50%;flex-shrink:0;}
+  .legend{display:flex;flex-direction:column;gap:8px;font-size:13px;}
+  .legend .lg-item{display:flex;align-items:center;gap:8px;}
+  .legend .sw{width:10px;height:10px;border-radius:3px;}
+  .bar-chart{display:flex;align-items:flex-end;gap:26px;height:200px;padding-top:10px;border-bottom:1px solid var(--border);}
+  .bar-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;flex:1;height:100%;}
+  .bar{width:56%;background:var(--accent);border-radius:6px 6px 0 0;min-height:2px;}
+  .bar.green{background:#16a34a;}
+  .bar-label{margin-top:8px;font-size:12.5px;color:#555;}
+  .bar-val{font-size:11.5px;color:var(--muted);margin-bottom:4px;}
+
+  /* Tables page */
+  .table-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
+  .table-tile{border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;background:#fff;cursor:pointer;}
+  .table-tile.free{border-color:#bfe8cf;background:#f3fbf6;}
+  .table-tile.occupied{border-color:#f3c79a;background:#fef4ec;}
+  .table-tile h4{margin:6px 0 4px;font-size:16px;}
+  .table-tile .t-status{font-size:12px;font-weight:700;}
+  .table-tile.free .t-status{color:#16a34a;}
+  .table-tile.occupied .t-status{color:var(--accent-dark);}
+
+  /* ================= DEVICE TOGGLE (Desktop / Mobile preview) ================= */
+  .device-toggle{position:fixed;top:14px;right:14px;z-index:1000;display:flex;gap:4px;background:#1c1410;padding:4px;border-radius:20px;box-shadow:0 6px 18px rgba(0,0,0,.25);}
+  .device-toggle button{border:none;background:transparent;color:#cfc6b9;padding:8px 14px;border-radius:16px;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .device-toggle button.active{background:var(--accent);color:#fff;}
+
+  /* ================= MOBILE TOPBAR + DRAWER NAV (hidden on desktop) ================= */
+  .mobile-topbar{display:none;align-items:center;justify-content:space-between;height:56px;background:var(--sidebar);color:#fff;padding:0 14px;}
+  .mobile-topbar .hamburger-btn,.mobile-topbar .mobile-logout-btn{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:6px;}
+  .mobile-topbar .mt-title{font-size:15.5px;font-weight:700;}
+  .drawer-overlay{display:none;}
+  .drawer-overlay.show{display:block;background:rgba(0,0,0,.45);}
+
+  .cart-float-bar{display:none;}
+
+  /* ================= MOBILE LAYOUT (applied on real narrow screens AND forced preview) ================= */
+  body.is-mobile #app{display:block;}
+  body.is-mobile .mobile-topbar{display:flex;position:fixed;top:0;left:0;right:0;z-index:300;}
+  body.is-mobile .drawer-overlay{position:fixed;inset:0;z-index:350;}
+  body.is-mobile .sidebar{position:fixed;top:0;bottom:0;left:-240px;width:230px;z-index:400;transition:left .25s;}
+  body.is-mobile .sidebar.drawer-open{left:0;}
+  body.is-mobile .sidebar .collapse-btn{display:none;}
+  body.is-mobile .main{margin-top:56px;padding:16px 14px 90px;width:100%;}
+  body.is-mobile .grid-4,body.is-mobile .grid-2,body.is-mobile .order-layout{grid-template-columns:1fr;}
+  body.is-mobile .page-title{font-size:20px;}
+  body.is-mobile .card{padding:14px;}
+  body.is-mobile .modal{width:94vw;padding:20px;}
+  body.is-mobile .receipt-modal{width:94vw;}
+  body.is-mobile .stat-card .value{font-size:22px;}
+  body.is-mobile table{font-size:12.5px;}
+  body.is-mobile .tabs{overflow-x:auto;max-width:100%;}
+  body.is-mobile .cart-float-bar{display:flex;position:fixed;left:14px;right:14px;bottom:14px;background:var(--accent);color:#fff;padding:14px 18px;border-radius:14px;font-weight:700;justify-content:space-between;align-items:center;z-index:250;box-shadow:0 10px 30px rgba(0,0,0,.25);cursor:pointer;}
+
+  /* ================= SIMULATED PHONE FRAME (only when 'Mobile' is forced on a wide desktop browser) ================= */
+  body.sim-frame{background:#e9e4d8;}
+  body.sim-frame #app{width:390px;height:844px;margin:36px auto;position:relative;overflow:hidden;border:10px solid #14100c;border-radius:38px;box-shadow:0 25px 70px rgba(0,0,0,.35);}
+  body.sim-frame .mobile-topbar{position:absolute;}
+  body.sim-frame .drawer-overlay{position:absolute;}
+  body.sim-frame .sidebar{position:absolute;}
+  body.sim-frame .main{position:absolute;top:56px;left:0;right:0;bottom:0;margin-top:0;overflow-y:auto;}
+  body.sim-frame .cart-float-bar{position:absolute;}
+  body.sim-frame .device-toggle{position:fixed;}
+
+  /* PRINT — sized exactly for 80mm thermal roll with auto-cutter, no wasted paper */
+  @media print{
+    body *{visibility:hidden;}
+    #receiptPreview, #receiptPreview *{visibility:visible;}
+    #receiptPreview{
+      position:absolute; left:0; top:0;
+      width:80mm;
+      margin:0; padding:3mm 4mm;
+    }
+    @page{ size:80mm auto; margin:0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-badge">Z</div>
+      <div>
+        <h1>Zaiqa Box</h1>
+        <p>Restaurant POS — Takeaway Edition</p>
+      </div>
+    </div>
+    <div class="field">
+      <label>Username</label>
+      <input id="loginUser" type="text" placeholder="Enter username" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="loginPass" type="password" placeholder="Enter password" autocomplete="current-password">
+    </div>
+    <div class="login-error" id="loginError">Invalid username or password.</div>
+    <button class="btn btn-primary" onclick="attemptLogin()">Log In</button>
+    <div class="login-hint">
+      <b>Default login</b><br>
+      Username: <b>admin</b> &nbsp;•&nbsp; Password: <b>admin123</b><br>
+      You can change this later in Settings → Account.
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <div class="mobile-topbar" id="mobileTopbar">
+    <button class="hamburger-btn" onclick="toggleDrawer()">☰</button>
+    <span class="mt-title" id="mobileTopbarTitle">Dashboard</span>
+    <button class="mobile-logout-btn" onclick="logout()">⎋</button>
+  </div>
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-badge">Z</div>
+      <div class="brand-text"><h2>Zaiqa Box</h2><p>Restaurant POS</p></div>
+    </div>
+    <nav>
+      <div class="nav-item active" data-page="dashboard" onclick="goPage('dashboard')">${ICON.grid}<span class="nav-label">Dashboard</span></div>
+      <div class="nav-item" data-page="neworder" onclick="goPage('neworder')">${ICON.cart}<span class="nav-label">New Order</span></div>
+      <div class="nav-item" data-page="activeorders" onclick="goPage('activeorders')">${ICON.clip}<span class="nav-label">Active Orders</span></div>
+      <div class="nav-item" data-page="history" onclick="goPage('history')">${ICON.clock}<span class="nav-label">Order History</span></div>
+      <div class="nav-item" data-page="menu" onclick="goPage('menu')">${ICON.fork}<span class="nav-label">Menu Management</span></div>
+      <div class="nav-item" data-page="tables" onclick="goPage('tables')">${ICON.grid2}<span class="nav-label">Tables</span></div>
+      <div class="nav-item" data-page="settings" onclick="goPage('settings')">${ICON.gear}<span class="nav-label">Settings</span></div>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="collapse-btn" onclick="toggleSidebar()">${ICON.collapse}<span class="collapse-text">Collapse</span></div>
+      <div class="logout-item" onclick="logout()">${ICON.logout}<span class="nav-label">Logout</span></div>
+    </div>
+  </div>
+
+  <div class="main" id="mainContent"></div>
+</div>
+
+<div class="device-toggle hidden" id="deviceToggle">
+  <button id="btnDesktop" onclick="setDeviceMode('desktop')">🖥 Desktop</button>
+  <button id="btnMobile" onclick="setDeviceMode('mobile')">📱 Mobile</button>
+</div>
+
+<!-- receipt modal (also used as print source) -->
+<div class="modal-overlay hidden" id="receiptModalOverlay">
+  <div class="modal receipt-modal">
+    <div class="receipt-modal-head">
+      <h3>Receipt Preview</h3>
+      <div class="receipt-modal-actions">
+        <button class="btn-sm dark" onclick="printReceipt()">🖨 Print</button>
+        <button class="modal-close" onclick="closeReceiptModal()">✕</button>
+      </div>
+    </div>
+    <div class="receipt-body-wrap">
+      <div id="receiptPreview"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
-tailwind.config = {
-  theme: {
-    extend: {
-      fontFamily: { inter: ['Inter','sans-serif'], display: ['Playfair Display','serif'] },
-      colors: {
-        background: '#f5f2ec', foreground: '#1a1612', card: '#ffffff',
-        primary: '#f97316', primaryfg: '#ffffff',
-        muted: '#ede8e0', mutedfg: '#6b5d4f',
-        border: '#e0d5c5', sidebar: '#1f1a14', sidebarfg: '#e8dfd0',
-        destructive: '#dc2626', accent: '#f97316'
+/* ============================================================
+   ICONS (inline svg, currentColor)
+============================================================ */
+const ICON = {
+  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  cart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>',
+  clip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="18" rx="2"/><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  fork:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7 18"/><path d="M21 3l-7 18"/><path d="M3 3l4 4"/><path d="M21 3l-4 4"/></svg>',
+  grid2:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.32.44.6.8.72.36.13.76.13 1.1 0H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  collapse:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>',
+  logout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'
+};
+// inject icons into nav (was templated as literal ${ICON..} text above since not using a template engine)
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.querySelectorAll('.nav-item, .collapse-btn, .logout-item').forEach(el=>{
+    el.innerHTML = el.innerHTML.replace(/\$\{ICON\.(\w+)\}/g, (m,k)=> ICON[k] || '');
+  });
+});
+
+/* ============================================================
+   DATA (in-memory only — see note in chat about persistence)
+============================================================ */
+let CREDENTIALS = { username:'admin', password:'admin123' };
+
+let settings = {
+  name:'Zaiqa Box',
+  address:'',
+  phone:'',
+  email:'owner@zaiqabox.com',
+  taxRate:5,
+  currency:'₹',
+  fssai:'10020042012345'
+};
+
+let menuItems = [
+  { id:1, name:'Fish Fry', desc:'Crispy fried fish with special coating', category:'Starters', price:320, type:'nonveg', available:true }
+];
+
+let tables = [
+  { id:1, name:'T1', status:'free' },
+  { id:2, name:'T2', status:'free' },
+  { id:3, name:'T3', status:'occupied' },
+  { id:4, name:'T4', status:'free' }
+];
+
+function daysAgo(n){ const d=new Date(); d.setDate(d.getDate()-n); return d; }
+function withTime(date,h,m){ const d=new Date(date); d.setHours(h,m,0,0); return d; }
+
+let orderSeq = 8600;
+let orders = [
+  mkOrder('ZB-8583','Delivery','-', [{name:'Fish Fry',qty:1,price:320}], 'UPI','Completed', withTime(daysAgo(0),15,7)),
+  mkOrder('ZB-4085','Dine In','-', [{name:'Fish Fry',qty:1,price:320}], 'Cash','Pending', withTime(daysAgo(0),15,1)),
+  mkOrder('ZB-1281','Takeaway','-', [{name:'Fish Fry',qty:1,price:320}], 'Cash','Completed', withTime(daysAgo(0),14,54)),
+  mkOrder('ZB-1624','Dine In','SYED', [{name:'Butter Masala',qty:1,price:260},{name:'Veg Spring Rolls',qty:1,price:180}], 'Cash','Cancelled', withTime(daysAgo(1),13,5)),
+  mkOrder('ZB-4062','Dine In','-', [{name:'Chicken Karahi',qty:1,price:340},{name:'Butter Masala',qty:1,price:260},{name:'Veg Spring Rolls',qty:1,price:180}], 'Cash','Completed', withTime(daysAgo(1),12,59)),
+  mkOrder('ZB-5291','Dine In','-', [{name:'Veg Spring Rolls',qty:1,price:160}], 'Cash','Cancelled', withTime(daysAgo(1),12,12)),
+  mkOrder('ZB-9561','Dine In','-', [{name:'Chicken Karahi',qty:3,price:340},{name:'Chicken Seekh',qty:2,price:280}], 'Cash','Cancelled', withTime(daysAgo(1),12,7)),
+  mkOrder('ZB-8524','Dine In','-', [{name:'Chicken Seekh',qty:1,price:280},{name:'Butter Masala',qty:1,price:260}], 'Cash','Cancelled', withTime(daysAgo(1),12,2)),
+  mkOrder('ZB-4207','Dine In','-', [{name:'Fish Fry',qty:1,price:320},{name:'Veg Spring Rolls',qty:1,price:180}], 'Cash','Cancelled', withTime(daysAgo(1),11,47)),
+  mkOrder('ZB-9832','Takeaway','-', [{name:'Chicken Seekh',qty:1,price:280},{name:'Veg Spring Rolls',qty:1,price:180}], 'Cash','Completed', withTime(daysAgo(2),20,15)),
+  mkOrder('ZB-6178','Dine In','-', [{name:'Chicken Karahi',qty:1,price:340},{name:'Butter Masala',qty:1,price:260}], 'Cash','Cancelled', withTime(daysAgo(2),20,14)),
+  mkOrder('ZB-9140','Dine In','-', [{name:'Chicken Karahi',qty:1,price:340},{name:'Butter Masala',qty:1,price:260}], 'Cash','Cancelled', withTime(daysAgo(2),19,18)),
+  mkOrder('ZB-5012','Dine In','-', [{name:'Chicken Karahi',qty:2,price:340}], 'Cash','Completed', withTime(daysAgo(2),19,17)),
+  mkOrder('ZB-2707','Takeaway','-', [{name:'Fish Fry',qty:1,price:320},{name:'Veg Spring Rolls',qty:1,price:180}], 'Cash','Completed', withTime(daysAgo(2),19,11))
+];
+
+function mkOrder(num,type,customer,items,payment,status,date){
+  const subtotal = items.reduce((s,i)=>s+i.qty*i.price,0);
+  const tax = Math.round(subtotal*0.05*100)/100;
+  return { id:num, type, customer, phone:'', items, payment, status, date, discount:0, notes:'', subtotal, tax, total:Math.round((subtotal+tax)*100)/100 };
+}
+
+let cart = []; // {menuId, name, price, qty}
+
+/* ============================================================
+   AUTH
+============================================================ */
+function attemptLogin(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginError');
+  if(u === CREDENTIALS.username && p === CREDENTIALS.password){
+    err.style.display='none';
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('deviceToggle').classList.remove('hidden');
+    applyDeviceMode();
+    goPage('dashboard');
+  } else {
+    err.style.display='block';
+  }
+}
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) attemptLogin();
+});
+function logout(){
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('deviceToggle').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+}
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('collapsed'); }
+
+/* ============================================================
+   DEVICE MODE — Desktop / Mobile toggle
+   'auto'    -> follows the real browser/phone width (genuine responsiveness)
+   'desktop' -> force full desktop layout regardless of width
+   'mobile'  -> force mobile layout; if the real window is wide (i.e. you're
+                previewing from a desktop browser) it also wraps the app in
+                a phone-sized frame so you can see it without resizing anything
+============================================================ */
+let deviceMode = 'auto';
+function setDeviceMode(mode){ deviceMode = mode; applyDeviceMode(); }
+function applyDeviceMode(){
+  let wantMobile;
+  if(deviceMode==='mobile') wantMobile = true;
+  else if(deviceMode==='desktop') wantMobile = false;
+  else wantMobile = window.matchMedia ? window.matchMedia('(max-width:600px)').matches : (window.innerWidth <= 600);
+
+  document.body.classList.toggle('is-mobile', wantMobile);
+  const needFrame = deviceMode==='mobile' && window.innerWidth > 600;
+  document.body.classList.toggle('sim-frame', needFrame);
+
+  const dTog = document.getElementById('deviceToggle');
+  if(dTog && !dTog.classList.contains('hidden')){
+    document.getElementById('btnDesktop').classList.toggle('active', !wantMobile);
+    document.getElementById('btnMobile').classList.toggle('active', wantMobile);
+  }
+  updateMobileTopbarTitle();
+}
+window.addEventListener('resize', ()=>{ if(deviceMode==='auto') applyDeviceMode(); });
+
+function toggleDrawer(){
+  document.getElementById('sidebar').classList.toggle('drawer-open');
+  document.getElementById('drawerOverlay').classList.toggle('show');
+}
+function closeDrawer(){
+  document.getElementById('sidebar').classList.remove('drawer-open');
+  document.getElementById('drawerOverlay').classList.remove('show');
+}
+function updateMobileTopbarTitle(){
+  const titles = {dashboard:'Dashboard', neworder:'New Order', activeorders:'Active Orders', history:'Order History', menu:'Menu Management', tables:'Tables', settings:'Settings'};
+  const el = document.getElementById('mobileTopbarTitle');
+  if(el) el.textContent = titles[currentPage] || '';
+}
+
+/* ============================================================
+   NAV / ROUTER
+============================================================ */
+let currentPage='dashboard';
+let activeTab='All'; // for active orders
+let menuCatFilter='All';
+let menuSearch='';
+let historySearch='';
+
+function goPage(page){
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.page===page));
+  closeDrawer();
+  updateMobileTopbarTitle();
+  render();
+}
+
+function render(){
+  const el = document.getElementById('mainContent');
+  // preserve focus + cursor position across re-renders (typing in search/text fields)
+  let focusId = null, selStart = null, selEnd = null;
+  const active = document.activeElement;
+  if(active && el.contains(active) && active.id){
+    focusId = active.id;
+    if('selectionStart' in active){ selStart = active.selectionStart; selEnd = active.selectionEnd; }
+  }
+  if(currentPage==='dashboard') el.innerHTML = renderDashboard();
+  else if(currentPage==='neworder') el.innerHTML = renderNewOrder();
+  else if(currentPage==='activeorders') el.innerHTML = renderActiveOrders();
+  else if(currentPage==='history') el.innerHTML = renderHistory();
+  else if(currentPage==='menu') el.innerHTML = renderMenuMgmt();
+  else if(currentPage==='tables') el.innerHTML = renderTables();
+  else if(currentPage==='settings') el.innerHTML = renderSettings();
+  if(focusId){
+    const toFocus = document.getElementById(focusId);
+    if(toFocus){
+      toFocus.focus();
+      if(selStart !== null && 'setSelectionRange' in toFocus){
+        try{ toFocus.setSelectionRange(selStart, selEnd); }catch(e){}
       }
     }
   }
 }
-</script>
-<style>
-  body { font-family: 'Inter', sans-serif; background: #f5f2ec; color: #1a1612; }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(107,93,79,.3); border-radius: 3px; }
-  .no-print { }
-  @media print { .no-print { display: none !important; } }
-</style>
-</head>
-<body>
-<div id="root"></div>
 
-<script type="text/babel">
-const { useState, useEffect, useMemo, useRef } = React;
-const { createRoot } = ReactDOM;
 
-// ============ STORAGE ============
-const DB = {
-  get(key, fallback) {
-    try { const v = localStorage.getItem('zb_'+key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-  },
-  set(key, val) { try { localStorage.setItem('zb_'+key, JSON.stringify(val)); } catch {}
+function todayStr(d){ const t=new Date(); return d.toDateString()===t.toDateString(); }
+function fmtDate(d){ return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ', ' + d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}); }
+function fmtTime(d){ return d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}); }
+function money(n){ return settings.currency + Number(n).toFixed(2).replace(/\.00$/,'.00'); }
+function badgeClass(status){ return 'badge badge-'+status.toLowerCase(); }
+
+/* ============================================================
+   DASHBOARD
+============================================================ */
+function renderDashboard(){
+  const today = orders.filter(o=>todayStr(o.date));
+  const todaysOrders = today.length;
+  const todaysRevenue = today.filter(o=>o.status==='Completed'||o.status==='Pending').reduce((s,o)=>s+o.total,0);
+  const completedToday = today.filter(o=>o.status==='Completed').length;
+  const activeCount = orders.filter(o=>['Pending','Preparing','Ready'].includes(o.status)).length;
+  const totalRevenue = orders.filter(o=>o.status==='Completed').reduce((s,o)=>s+o.total,0);
+
+  // popular items
+  const itemCounts = {};
+  orders.forEach(o=> o.items.forEach(i=>{ itemCounts[i.name]=(itemCounts[i.name]||0)+i.qty; }));
+  const popular = Object.entries(itemCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const pieColors = ['#f97316','#16a34a','#2563eb','#db2777','#d4a017'];
+  const totalPop = popular.reduce((s,p)=>s+p[1],0)||1;
+  let acc=0;
+  const gradientParts = popular.map((p,i)=>{
+    const start = acc/totalPop*360; acc+=p[1]; const end = acc/totalPop*360;
+    return `${pieColors[i%pieColors.length]} ${start}deg ${end}deg`;
+  });
+  const pieCss = gradientParts.length ? `conic-gradient(${gradientParts.join(',')})` : '#eee';
+
+  // order types
+  const typeCounts = {};
+  orders.forEach(o=> typeCounts[o.type]=(typeCounts[o.type]||0)+1);
+  const maxType = Math.max(1,...Object.values(typeCounts));
+
+  // earnings by payment
+  const payTotals = {};
+  orders.filter(o=>o.status==='Completed').forEach(o=> payTotals[o.payment]=(payTotals[o.payment]||0)+o.total);
+  const maxPay = Math.max(1,...Object.values(payTotals),1);
+
+  const recent = [...orders].sort((a,b)=>b.date-a.date).slice(0,10);
+
+  return `
+  <div class="page-title">Dashboard</div>
+  <div class="page-sub">${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+
+  <div class="grid grid-4" style="margin-bottom:20px;">
+    ${statCard("Today's Orders", todaysOrders, `↑ ${completedToday} completed`, ICON.cart)}
+    ${statCard("Today's Revenue", money(todaysRevenue), '', '$')}
+    ${statCard('Active Orders', activeCount, activeCount? '↑ In progress':'All clear', ICON.clock)}
+    ${statCard('Total Revenue', money(totalRevenue), '', '↗')}
+  </div>
+
+  <div class="grid grid-2" style="margin-bottom:20px;">
+    <div class="card">
+      <h3 style="margin-top:0;">Popular Items</h3>
+      ${popular.length? `
+      <div style="display:flex;align-items:center;gap:26px;">
+        <div class="pie" style="background:${pieCss};"></div>
+        <div class="legend">
+          ${popular.map((p,i)=>`<div class="lg-item"><span class="sw" style="background:${pieColors[i%pieColors.length]}"></span>${p[0]} (${p[1]})</div>`).join('')}
+        </div>
+      </div>` : `<div class="empty-state">No order data yet</div>`}
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">Order Types</h3>
+      <div class="bar-chart">
+        ${Object.entries(typeCounts).map(([k,v])=>`
+          <div class="bar-col">
+            <div class="bar-val">${v}</div>
+            <div class="bar" style="height:${(v/maxType*100)||2}%"></div>
+            <div class="bar-label">${k}</div>
+          </div>`).join('') || '<div class="empty-state">No orders yet</div>'}
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <h3 style="margin-top:0;">Earnings by Payment Method</h3>
+    <div class="bar-chart">
+      ${Object.entries(payTotals).map(([k,v])=>`
+        <div class="bar-col">
+          <div class="bar-val">${money(v)}</div>
+          <div class="bar green" style="height:${(v/maxPay*100)||2}%"></div>
+          <div class="bar-label">${k}</div>
+        </div>`).join('') || '<div class="empty-state">No completed orders yet</div>'}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Recent Orders</h3>
+    <table>
+      <tr><th>Order #</th><th>Type</th><th>Items</th><th>Total</th><th>Status</th><th>Time</th></tr>
+      ${recent.map(o=>`
+        <tr>
+          <td><b>${o.id}</b></td>
+          <td>${o.type}</td>
+          <td>${o.items.length} items</td>
+          <td>${money(o.total)}</td>
+          <td><span class="${badgeClass(o.status)}">${o.status}</span></td>
+          <td>${fmtTime(o.date)}</td>
+        </tr>`).join('')}
+    </table>
+  </div>
+  `;
+}
+function statCard(label,value,delta,icon){
+  return `<div class="card stat-card">
+    <div>
+      <div class="label">${label}</div>
+      <div class="value">${value}</div>
+      ${delta?`<div class="delta">${delta}</div>`:''}
+    </div>
+    <div class="stat-icon">${icon.length<3?icon:icon}</div>
+  </div>`;
+}
+
+/* ============================================================
+   NEW ORDER
+============================================================ */
+let orderForm = { type:'Takeaway', customer:'', phone:'', payment:'Cash', discount:0, notes:'' };
+
+function renderNewOrder(){
+  const cats = ['All', ...new Set(menuItems.map(i=>i.category))];
+  const filtered = menuItems.filter(i=>
+    (menuCatFilter==='All'||i.category===menuCatFilter) &&
+    i.name.toLowerCase().includes(menuSearch.toLowerCase())
+  );
+  const subtotal = cart.reduce((s,i)=>s+i.qty*i.price,0);
+  const tax = subtotal * (settings.taxRate/100);
+  const total = Math.max(0, subtotal + tax - Number(orderForm.discount||0));
+
+  return `
+  <div class="page-title">New Order</div>
+  <div class="page-sub">Select items to create an order</div>
+  <div class="order-layout">
+    <div>
+      <div class="search-row">
+        <input id="menuSearchInput" placeholder="Search menu items..." value="${menuSearch}" oninput="menuSearch=this.value; renderOnly('menuGrid')">
+      </div>
+      <div class="cat-pills">
+        ${cats.map(c=>`<div class="pill ${menuCatFilter===c?'active':''}" onclick="menuCatFilter='${c}'; render()">${c}</div>`).join('')}
+      </div>
+      <div id="menuGrid" class="menu-grid">
+        ${filtered.length? filtered.filter(i=>i.available).map(i=>`
+          <div class="menu-item-card">
+            <div>
+              <h4><span class="dot ${i.type==='veg'?'dot-veg':'dot-nonveg'}"></span>${i.name}</h4>
+              <p>${i.desc||''}</p>
+              <div class="price">${money(i.price)}</div>
+            </div>
+            <button class="add-btn" onclick="addToCart(${i.id})">+</button>
+          </div>`).join('') : `<div class="empty-state">No menu items match your search.</div>`}
+      </div>
+    </div>
+
+    <div class="card" id="orderPanel">
+      <div class="order-panel-head">
+        <h3>${ICON.cart} Current Order</h3>
+        <span class="clear-link" onclick="clearCart()">Clear</span>
+      </div>
+
+      <div class="field-sm" style="margin-bottom:14px;">
+        <label>Order Type</label>
+        <select onchange="orderForm.type=this.value">
+          <option ${orderForm.type==='Takeaway'?'selected':''}>Takeaway</option>
+          <option ${orderForm.type==='Dine In'?'selected':''}>Dine In</option>
+          <option ${orderForm.type==='Delivery'?'selected':''}>Delivery</option>
+        </select>
+      </div>
+
+      <div class="field-row">
+        <div class="field-sm"><label>Customer Name</label><input placeholder="Name" value="${orderForm.customer}" oninput="orderForm.customer=this.value"></div>
+        <div class="field-sm"><label>Phone</label><input placeholder="Phone" value="${orderForm.phone}" oninput="orderForm.phone=this.value"></div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-sm">
+          <label>Payment Method</label>
+          <select onchange="orderForm.payment=this.value">
+            <option ${orderForm.payment==='Cash'?'selected':''}>Cash</option>
+            <option ${orderForm.payment==='UPI'?'selected':''}>UPI</option>
+            <option ${orderForm.payment==='Card'?'selected':''}>Card</option>
+          </select>
+        </div>
+        <div class="field-sm"><label>Discount (${settings.currency})</label><input id="discountInput" type="number" min="0" value="${orderForm.discount}" oninput="orderForm.discount=this.value; renderOnly('orderPanel')"></div>
+      </div>
+
+      <div id="cartLines">
+        ${cart.length? cart.map(c=>`
+          <div class="cart-line">
+            <div>
+              <div class="name">${c.name}</div>
+              <div class="unit">${money(c.price)} each</div>
+            </div>
+            <div class="qty-ctrl">
+              <button onclick="changeQty(${c.menuId},-1)">−</button>
+              <span>${c.qty}</span>
+              <button onclick="changeQty(${c.menuId},1)">+</button>
+              <span style="min-width:56px;text-align:right;font-weight:600;">${money(c.qty*c.price)}</span>
+              <button class="trash-btn" onclick="removeFromCart(${c.menuId})">🗑</button>
+            </div>
+          </div>`).join('') : `<div class="empty-state" style="padding:30px 10px;">No items added yet<br><small>Select items from the menu</small></div>`}
+      </div>
+
+      <div class="field-sm" style="margin-top:14px;">
+        <label>Special Instructions</label>
+        <textarea rows="2" placeholder="Any special requests..." oninput="orderForm.notes=this.value">${orderForm.notes}</textarea>
+      </div>
+
+      <div style="margin-top:14px;">
+        <div class="totals-row"><span>Subtotal</span><span>${money(subtotal)}</span></div>
+        <div class="totals-row"><span>Tax (${settings.taxRate}%)</span><span>${money(tax)}</span></div>
+        ${orderForm.discount>0?`<div class="totals-row"><span>Discount</span><span>-${money(orderForm.discount)}</span></div>`:''}
+        <div class="totals-row grand"><span>Total</span><span>${money(total)}</span></div>
+      </div>
+
+      <button class="place-order-btn" ${cart.length?'':'disabled'} onclick="placeOrder()">Place Order • ${money(total)}</button>
+    </div>
+  </div>
+  ${cart.length? `<div class="cart-float-bar" onclick="document.getElementById('orderPanel').scrollIntoView({behavior:'smooth'})">
+    <span>🛒 ${cart.length} item(s) in cart</span><span>${money(total)}</span>
+  </div>` : ''}
+  `;
+}
+function renderOnly(id){
+  // re-render whole page for simplicity but keep focus feel minimal; still consistent state
+  render();
+}
+function addToCart(menuId){
+  const item = menuItems.find(i=>i.id===menuId);
+  const existing = cart.find(c=>c.menuId===menuId);
+  if(existing) existing.qty++;
+  else cart.push({menuId:item.id, name:item.name, price:item.price, qty:1});
+  render();
+}
+function changeQty(menuId,delta){
+  const c = cart.find(c=>c.menuId===menuId);
+  if(!c) return;
+  c.qty += delta;
+  if(c.qty<=0) cart = cart.filter(x=>x.menuId!==menuId);
+  render();
+}
+function removeFromCart(menuId){ cart = cart.filter(c=>c.menuId!==menuId); render(); }
+function clearCart(){ cart=[]; orderForm={type:orderForm.type,customer:'',phone:'',payment:'Cash',discount:0,notes:''}; render(); }
+
+function placeOrder(){
+  if(!cart.length) return;
+  orderSeq++;
+  const num = 'ZB-' + orderSeq;
+  const subtotal = cart.reduce((s,i)=>s+i.qty*i.price,0);
+  const tax = Math.round(subtotal*(settings.taxRate/100)*100)/100;
+  const total = Math.max(0, Math.round((subtotal+tax-Number(orderForm.discount||0))*100)/100);
+  const order = {
+    id:num, type:orderForm.type, customer:orderForm.customer||'-', phone:orderForm.phone||'',
+    items: cart.map(c=>({name:c.name, qty:c.qty, price:c.price})),
+    payment:orderForm.payment, status:'Pending', date:new Date(),
+    discount:Number(orderForm.discount||0), notes:orderForm.notes||'', subtotal, tax, total
+  };
+  orders.unshift(order);
+  cart = [];
+  const savedType = orderForm.type;
+  orderForm = { type:savedType, customer:'', phone:'', payment:'Cash', discount:0, notes:'' };
+  showToast('Order '+num+' placed successfully');
+  openReceiptModal(order);
+  render();
+}
+
+/* ============================================================
+   ACTIVE ORDERS
+============================================================ */
+function renderActiveOrders(){
+  const active = orders.filter(o=>['Pending','Preparing','Ready','Served'].includes(o.status));
+  const tabs = ['All','Pending','Preparing','Ready','Served'];
+  const counts = {}; tabs.forEach(t=> counts[t] = t==='All'? active.length : active.filter(o=>o.status===t).length);
+  const list = activeTab==='All'? active : active.filter(o=>o.status===activeTab);
+
+  return `
+  <div class="page-title">Active Orders</div>
+  <div class="page-sub">${active.length} active orders</div>
+  <div class="tabs">
+    ${tabs.map(t=>`<div class="tab ${activeTab===t?'active':''}" onclick="activeTab='${t}'; render()">${t} (${counts[t]})</div>`).join('')}
+  </div>
+  <div class="order-cards">
+    ${list.length? list.map(o=>`
+      <div class="order-card">
+        <div class="order-card-head">
+          <div class="left">
+            <h4>${o.id}</h4>
+            <span class="${badgeClass(o.status)}">${o.status}</span>
+          </div>
+          <span class="badge badge-type">${o.type}</span>
+        </div>
+        <small>🕒 ${fmtTime(o.date)}</small>
+        <div class="order-items-line">${o.items.map(i=>`${i.name} x${i.qty}`).join(', ')}</div>
+        <div class="order-card-foot">
+          <div class="order-total">${money(o.total)}</div>
+          <div class="action-row">
+            <button class="btn-sm" onclick='openReceiptModal(${JSON.stringify(o.id)})'>🧾 Receipt</button>
+            ${nextStatusButton(o)}
+            ${o.status!=='Served'? `<button class="btn-sm red" onclick="cancelOrder('${o.id}')">Cancel</button>`:''}
+          </div>
+        </div>
+      </div>`).join('') : `<div class="empty-state">No orders in this view.</div>`}
+  </div>
+  `;
+}
+function nextStatusButton(o){
+  const flow = {Pending:'Preparing', Preparing:'Ready', Ready:'Served'};
+  const next = flow[o.status];
+  if(!next) return '';
+  const label = next==='Preparing'?'Mark Preparing': next==='Ready'?'Mark Ready':'Mark Served';
+  return `<button class="btn-sm orange" onclick="advanceStatus('${o.id}')">${label}</button>`;
+}
+function advanceStatus(id){
+  const flow = {Pending:'Preparing', Preparing:'Ready', Ready:'Served'};
+  const o = orders.find(o=>o.id===id);
+  if(o && flow[o.status]){ o.status = flow[o.status]; if(o.status==='Served') o.status='Completed'; }
+  render();
+}
+function cancelOrder(id){
+  const o = orders.find(o=>o.id===id);
+  if(o){ o.status='Cancelled'; }
+  render();
+}
+
+/* ============================================================
+   ORDER HISTORY
+============================================================ */
+function renderHistory(){
+  const q = historySearch.toLowerCase();
+  const list = [...orders].sort((a,b)=>b.date-a.date).filter(o=>
+    !q || o.id.toLowerCase().includes(q) || (o.customer||'').toLowerCase().includes(q) || (o.phone||'').includes(q)
+  );
+  return `
+  <div class="page-title">Order History</div>
+  <div class="page-sub">${orders.length} total orders</div>
+  <div class="search-row">
+    <input id="historySearchInput" placeholder="Search by order #, customer name or phone..." value="${historySearch}" oninput="historySearch=this.value; render()">
+  </div>
+  <div class="card" style="padding:0;overflow-x:auto;">
+    <table>
+      <tr><th>Order #</th><th>Customer</th><th>Type</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+      ${list.map(o=>`
+        <tr>
+          <td><b>${o.id}</b></td>
+          <td>${o.customer||'-'}</td>
+          <td>${o.type}</td>
+          <td>${o.items.length}</td>
+          <td>${money(o.total)}</td>
+          <td>${o.payment}</td>
+          <td><span class="${badgeClass(o.status)}">${o.status}</span></td>
+          <td>${fmtDate(o.date)}</td>
+          <td><button class="icon-btn" onclick='openReceiptModal(${JSON.stringify(o.id)})'>🧾</button></td>
+        </tr>`).join('')}
+    </table>
+  </div>
+  `;
+}
+
+/* ============================================================
+   MENU MANAGEMENT
+============================================================ */
+let editingItemId = null;
+function renderMenuMgmt(){
+  const cats = ['All Categories', ...new Set(menuItems.map(i=>i.category))];
+  const list = menuItems.filter(i=>
+    (menuCatFilter==='All'||menuCatFilter==='All Categories'||i.category===menuCatFilter) &&
+    i.name.toLowerCase().includes(menuSearch.toLowerCase())
+  );
+  return `
+  <div class="page-head">
+    <div>
+      <div class="page-title">Menu Management</div>
+      <div class="page-sub">${menuItems.length} items in menu</div>
+    </div>
+    <button class="btn-add" onclick="openItemModal()">+ Add Item</button>
+  </div>
+  <div class="search-row">
+    <input id="menuMgmtSearchInput" placeholder="Search items..." value="${menuSearch}" oninput="menuSearch=this.value; render()">
+    <select onchange="menuCatFilter=this.value; render()">
+      ${cats.map(c=>`<option ${menuCatFilter===c?'selected':''}>${c}</option>`).join('')}
+    </select>
+  </div>
+  <div class="card" style="padding:0;overflow-x:auto;">
+    <table>
+      <tr><th>Item</th><th>Category</th><th>Price</th><th>Type</th><th>Available</th><th>Actions</th></tr>
+      ${list.length? list.map(i=>`
+        <tr>
+          <td><b>${i.name}</b><br><small style="color:var(--muted)">${i.desc||''}</small></td>
+          <td><span class="badge badge-type">${i.category}</span></td>
+          <td>${money(i.price)}</td>
+          <td><span class="dot ${i.type==='veg'?'dot-veg':'dot-nonveg'}"></span></td>
+          <td><button class="toggle ${i.available?'on':'off'}" onclick="toggleAvailable(${i.id})">${i.available?'Yes':'No'}</button></td>
+          <td>
+            <button class="icon-btn" onclick="openItemModal(${i.id})">✏️</button>
+            <button class="icon-btn danger" onclick="deleteItem(${i.id})">🗑</button>
+          </td>
+        </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state">No menu items yet. Click "Add Item" to create your first one.</div></td></tr>`}
+    </table>
+  </div>
+  `;
+}
+function toggleAvailable(id){ const i=menuItems.find(i=>i.id===id); if(i) i.available=!i.available; render(); }
+function deleteItem(id){ if(confirm('Delete this menu item?')){ menuItems = menuItems.filter(i=>i.id!==id); render(); } }
+function openItemModal(id){
+  editingItemId = id || null;
+  const item = id ? menuItems.find(i=>i.id===id) : {name:'',desc:'',category:'',price:'',type:'veg',available:true};
+  const overlay = document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.id='itemModalOverlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <button class="modal-close" onclick="closeItemModal()">✕</button>
+      <h3>${id? 'Edit Item':'Add Menu Item'}</h3>
+      <div class="form-row"><label>Item Name</label><input id="im_name" value="${item.name}"></div>
+      <div class="form-row"><label>Description</label><textarea id="im_desc" rows="2">${item.desc||''}</textarea></div>
+      <div class="form-two">
+        <div class="form-row"><label>Category</label><input id="im_cat" value="${item.category||''}" placeholder="e.g. Starters"></div>
+        <div class="form-row"><label>Price (${settings.currency})</label><input id="im_price" type="number" value="${item.price}"></div>
+      </div>
+      <div class="form-row">
+        <label>Type</label>
+        <div class="radio-row">
+          <label><input type="radio" name="im_type" value="veg" ${item.type==='veg'?'checked':''}> Veg</label>
+          <label><input type="radio" name="im_type" value="nonveg" ${item.type!=='veg'?'checked':''}> Non-Veg</label>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="saveItem()">${id?'Save Changes':'Add Item'}</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function closeItemModal(){ const m=document.getElementById('itemModalOverlay'); if(m) m.remove(); }
+function saveItem(){
+  const name = document.getElementById('im_name').value.trim();
+  const desc = document.getElementById('im_desc').value.trim();
+  const category = document.getElementById('im_cat').value.trim() || 'General';
+  const price = Number(document.getElementById('im_price').value)||0;
+  const type = document.querySelector('input[name="im_type"]:checked').value;
+  if(!name){ alert('Please enter an item name'); return; }
+  if(editingItemId){
+    const item = menuItems.find(i=>i.id===editingItemId);
+    Object.assign(item, {name,desc,category,price,type});
+  } else {
+    const id = Math.max(0,...menuItems.map(i=>i.id))+1;
+    menuItems.push({id,name,desc,category,price,type,available:true});
   }
-};
-
-// ============ SEED DATA ============
-const SEED_MENU = [
-  { id:'m1', name:'Chicken Biryani', description:'Hyderabadi style', price:220, category:'Biryani', is_available:true, is_veg:false },
-  { id:'m2', name:'Veg Biryani', description:'Dum style', price:180, category:'Biryani', is_available:true, is_veg:true },
-  { id:'m3', name:'Paneer Tikka', description:'Tandoor grilled', price:240, category:'Starters', is_available:true, is_veg:true },
-  { id:'m4', name:'Chicken Tikka', description:'Char-grilled', price:260, category:'Starters', is_available:true, is_veg:false },
-  { id:'m5', name:'Veg Manchurian', description:'Indo-Chinese', price:190, category:'Chinese', is_available:true, is_veg:true },
-  { id:'m6', name:'Chicken 65', description:'Spicy fried', price:210, category:'Chinese', is_available:true, is_veg:false },
-  { id:'m7', name:'Mutton Curry', description:'Home style', price:320, category:'Main Course', is_available:true, is_veg:false },
-  { id:'m8', name:'Dal Tadka', description:'Yellow dal', price:150, category:'Main Course', is_available:true, is_veg:true },
-  { id:'m9', name:'Butter Naan', description:'Tandoor', price:50, category:'Main Course', is_available:true, is_veg:true },
-  { id:'m10', name:'Coca-Cola', description:'Chilled', price:60, category:'Beverages', is_available:true, is_veg:true },
-  { id:'m11', name:'Fresh Lime Soda', description:'Sweet/Salty', price:70, category:'Beverages', is_available:true, is_veg:true },
-  { id:'m12', name:'Gulab Jamun', description:'2 pcs', price:80, category:'Desserts', is_available:true, is_veg:true }
-];
-const SEED_TABLES = [
-  { id:'t1', table_number:'1', capacity:4, status:'Available' },
-  { id:'t2', table_number:'2', capacity:2, status:'Available' },
-  { id:'t3', table_number:'3', capacity:6, status:'Occupied' },
-  { id:'t4', table_number:'4', capacity:4, status:'Available' },
-  { id:'t5', table_number:'5', capacity:8, status:'Reserved' }
-];
-const CATEGORIES = ['Starters','Main Course','Chinese','BBQ','Rolls & Wraps','Biryani','Beverages','Desserts','Sides'];
-
-function seedIfEmpty() {
-  if (!DB.get('menu')) DB.set('menu', SEED_MENU);
-  if (!DB.get('tables')) DB.set('tables', SEED_TABLES);
-  if (!DB.get('orders')) DB.set('orders', []);
-  if (!DB.get('settings')) DB.set('settings', { restaurant_name:'Zaiqa Box', tax_rate:5, currency:'INR', fssai:'10020042012345', address:'Main Road, City', phone:'+91 98765 43210' });
+  closeItemModal();
+  render();
 }
-seedIfEmpty();
 
-function toIST(d) { return new Date(d).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}); }
+/* ============================================================
+   TABLES
+============================================================ */
+function renderTables(){
+  return `
+  <div class="page-title">Tables</div>
+  <div class="page-sub">${tables.filter(t=>t.status==='free').length} free • ${tables.filter(t=>t.status==='occupied').length} occupied</div>
+  <div class="table-grid">
+    ${tables.map(t=>`
+      <div class="table-tile ${t.status}" onclick="toggleTable(${t.id})">
+        <div style="font-size:26px;">🍽️</div>
+        <h4>${t.name}</h4>
+        <div class="t-status">${t.status==='free'?'Free':'Occupied'}</div>
+      </div>`).join('')}
+  </div>
+  `;
+}
+function toggleTable(id){ const t=tables.find(t=>t.id===id); t.status = t.status==='free'?'occupied':'free'; render(); }
 
-// ============ ICONS ============
-const Icon = {
-  Layout:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>),
-  Cart:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>),
-  List:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>),
-  History:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v5h5M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>),
-  Utensils:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 2v7c0 1.1.9 2 2 2h0a2 2 0 0 0 2-2V2M5 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>),
-  Grid:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>),
-  Settings:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>),
-  Plus:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>),
-  Minus:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/></svg>),
-  Trash:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>),
-  Search:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>),
-  X:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>),
-  Printer:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>),
-  TrendUp:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>),
-  Clock:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>),
-  Check:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6 9 17l-5-5"/></svg>),
-  Dollar:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>),
-  Menu:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>),
-  Logout:(p)=>(<svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>)
-};
-
-// ============ POS GUARD ============
-const GUARD_USER='ZAIQABOX', GUARD_PASS='HKGN@786';
-function PosAuthGuard({children}) {
-  const [authed,setAuthed]=useState(()=>sessionStorage.getItem('zb_pos_auth')==='1');
-  const [u,setU]=useState(''),[p,setP]=useState(''),[err,setErr]=useState('');
-  const login=(e)=>{e.preventDefault(); if(u===GUARD_USER&&p===GUARD_PASS){sessionStorage.setItem('zb_pos_auth','1');setAuthed(true);}else{setErr('Invalid credentials');}};
-  if(authed) return children;
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-100 p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-3"><span className="text-white font-bold text-2xl">Z</span></div>
-          <h1 className="text-2xl font-bold">Zaiqa Box POS</h1>
-          <p className="text-mutedfg text-sm">Enter staff credentials to access</p>
-        </div>
-        <form onSubmit={login} className="space-y-3">
-          <input value={u} onChange={e=>setU(e.target.value)} placeholder="Username" className="w-full px-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"/>
-          <input type="password" value={p} onChange={e=>setP(e.target.value)} placeholder="Password" className="w-full px-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"/>
-          {err&&<p className="text-destructive text-sm">{err}</p>}
-          <button className="w-full bg-primary text-white py-2.5 rounded-lg font-semibold hover:bg-orange-600 transition">Login</button>
-        </form>
+/* ============================================================
+   SETTINGS
+============================================================ */
+function renderSettings(){
+  return `
+  <div class="page-title">Settings</div>
+  <div class="page-sub">Configure your restaurant POS</div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3 style="margin-top:0;">🏪 Restaurant Information</h3>
+      <div class="form-row"><label>Restaurant Name</label><input id="s_name" value="${settings.name}"></div>
+      <div class="form-row"><label>Address</label><input id="s_addr" value="${settings.address}" placeholder="Restaurant address"></div>
+      <div class="form-two">
+        <div class="form-row"><label>Phone</label><input id="s_phone" value="${settings.phone}" placeholder="Phone number"></div>
+        <div class="form-row"><label>Email</label><input id="s_email" value="${settings.email}"></div>
       </div>
+      <div class="form-two">
+        <div class="form-row"><label>Tax Rate (%)</label><input id="s_tax" type="number" value="${settings.taxRate}"></div>
+        <div class="form-row"><label>Currency Symbol</label><input id="s_curr" value="${settings.currency}"></div>
+      </div>
+      <div class="form-row"><label>FSSAI License No.</label><input id="s_fssai" value="${settings.fssai}"></div>
+      <button class="btn btn-primary" style="width:auto;padding:11px 22px;" onclick="saveSettings()">💾 Save Settings</button>
     </div>
-  );
-}
 
-// ============ SIDEBAR ============
-const NAV=[{p:'dashboard',l:'Dashboard',i:'Layout'},{p:'new',l:'New Order',i:'Cart'},{p:'active',l:'Active Orders',i:'List'},{p:'history',l:'Order History',i:'History'},{p:'menu',l:'Menu Management',i:'Utensils'},{p:'tables',l:'Tables',i:'Grid'},{p:'settings',l:'Settings',i:'Settings'}];
-function Sidebar({page,setPage}){
-  return (
-    <aside className="fixed left-0 top-0 bottom-0 w-60 bg-sidebar text-sidebarfg flex flex-col z-40">
-      <div className="p-5 border-b border-white/10 flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center"><span className="text-white font-bold text-xl">Z</span></div>
-        <div><h1 className="font-bold text-lg leading-tight">Zaiqa Box</h1><p className="text-xs opacity-60">POS System</p></div>
-      </div>
-      <nav className="flex-1 p-3 space-y-1">
-        {NAV.map(n=>(
-          <button key={n.p} onClick={()=>setPage(n.p)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${page===n.p?'bg-primary text-white':'hover:bg-white/10'}`}>
-            {React.createElement(Icon[n.i],{className:'w-5 h-5'})}{n.l}
-          </button>
-        ))}
-      </nav>
-      <div className="p-3 border-t border-white/10">
-        <button onClick={()=>{sessionStorage.removeItem('zb_pos_auth');location.reload()}} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/10 text-red-300"><Icon.Logout className="w-5 h-5"/>Logout</button>
-      </div>
-    </aside>
-  );
-}
-
-// ============ DASHBOARD ============
-function Dashboard({goto}){
-  const orders=DB.get('orders',[]);
-  const menu=DB.get('menu',[]);
-  const today=new Date().toDateString();
-  const todayOrders=orders.filter(o=>new Date(o.created_date).toDateString()===today && o.status!=='Cancelled');
-  const revenue=todayOrders.reduce((s,o)=>s+o.total,0);
-  const activeCount=orders.filter(o=>['Pending','Preparing','Ready','Served'].includes(o.status)).length;
-  const completedCount=orders.filter(o=>o.status==='Completed').length;
-  const stats=[{l:"Today's Revenue",v:'₹'+revenue.toFixed(0),i:'Dollar',c:'text-green-600'},{l:"Today's Orders",v:todayOrders.length,i:'Cart',c:'text-blue-600'},{l:'Active Orders',v:activeCount,i:'Clock',c:'text-orange-600'},{l:'Completed',v:completedCount,i:'Check',c:'text-purple-600'}];
-  // last 7 days
-  const days=[];
-  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dstr=d.toDateString();const total=orders.filter(o=>new Date(o.created_date).toDateString()===dstr&&o.status!=='Cancelled').reduce((s,o)=>s+o.total,0);days.push({d:d.toLocaleDateString('en-IN',{weekday:'short'}),total});}
-  const maxDay=Math.max(...days.map(d=>d.total),1);
-  const payMethod={Cash:0,Card:0,UPI:0,Online:0};
-  orders.filter(o=>o.status!=='Cancelled').forEach(o=>{if(payMethod[o.payment_method]!==undefined)payMethod[o.payment_method]+=o.total;});
-  const recent=orders.slice(-10).reverse();
-
-  return (
-    <div>
-      <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
-      <p className="text-mutedfg text-sm mb-6">Business overview & analytics</p>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {stats.map((s,i)=>(
-          <div key={i} className="bg-white rounded-xl border border-border p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center ${s.c}`}><span className="sr-only">icon</span></div>
-            </div>
-            <p className="text-2xl font-bold">{s.v}</p>
-            <p className="text-sm text-mutedfg">{s.l}</p>
-          </div>
-        ))}
-      </div>
-      <div className="grid lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-border p-5 shadow-sm">
-          <h2 className="font-semibold mb-4">Revenue (Last 7 Days)</h2>
-          <div className="flex items-end justify-between gap-2 h-48">
-            {days.map((d,i)=>(
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full bg-primary rounded-t-lg" style={{height:(d.total/maxDay*100)+'%',minHeight:'4px'}}></div>
-                <span className="text-xs text-mutedfg">{d.d}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
-          <h2 className="font-semibold mb-4">Payment Methods</h2>
-          <div className="space-y-3">
-            {Object.entries(payMethod).map(([k,v])=>(
-              <div key={k}>
-                <div className="flex justify-between text-sm mb-1"><span>{k}</span><span className="font-semibold">₹{v.toFixed(0)}</span></div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary" style={{width:(v/(revenue||1)*100)+'%'}}></div></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="font-semibold">Recent Orders</h2>
-          <button onClick={()=>goto('history')} className="text-sm text-primary font-medium">View All</button>
-        </div>
-        {recent.length===0?<p className="text-center text-mutedfg py-8">No orders yet</p>:(
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-border text-left text-mutedfg">
-                <th className="py-2 px-2">Order #</th><th className="py-2 px-2">Type</th><th className="py-2 px-2">Items</th><th className="py-2 px-2">Total</th><th className="py-2 px-2">Status</th><th className="py-2 px-2">Time</th>
-              </tr></thead>
-              <tbody>
-                {recent.map(o=>(
-                  <tr key={o.id} className="border-b border-border/50 hover:bg-muted/30">
-                    <td className="py-2 px-2 font-medium">{o.order_number}</td>
-                    <td className="py-2 px-2">{o.order_type}</td>
-                    <td className="py-2 px-2">{o.items.length}</td>
-                    <td className="py-2 px-2 font-semibold">₹{o.total.toFixed(0)}</td>
-                    <td className="py-2 px-2"><StatusBadge status={o.status}/></td>
-                    <td className="py-2 px-2 text-mutedfg">{toIST(o.created_date)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+    <div class="card">
+      <h3 style="margin-top:0;">🔐 Account &amp; Login</h3>
+      <div class="form-row"><label>Username</label><input id="s_user" value="${CREDENTIALS.username}"></div>
+      <div class="form-row"><label>New Password</label><input id="s_pass" type="password" placeholder="Leave blank to keep current"></div>
+      <button class="btn btn-primary" style="width:auto;padding:11px 22px;" onclick="saveCredentials()">Update Login</button>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.5;">
+        🖨 <b>Printer note:</b> Receipts are formatted for an 80mm thermal roll with auto-height (no wasted paper) and work with auto-cutter printers. Make sure your printer/driver paper size is set to <b>80mm Roll / Receipt</b>, not A4.
+      </p>
     </div>
-  );
+  </div>
+  `;
+}
+function saveSettings(){
+  settings.name = document.getElementById('s_name').value || settings.name;
+  settings.address = document.getElementById('s_addr').value;
+  settings.phone = document.getElementById('s_phone').value;
+  settings.email = document.getElementById('s_email').value;
+  settings.taxRate = Number(document.getElementById('s_tax').value)||0;
+  settings.currency = document.getElementById('s_curr').value || '₹';
+  settings.fssai = document.getElementById('s_fssai').value;
+  showToast('Settings saved');
+  render();
+}
+function saveCredentials(){
+  const u = document.getElementById('s_user').value.trim();
+  const p = document.getElementById('s_pass').value;
+  if(u) CREDENTIALS.username = u;
+  if(p) CREDENTIALS.password = p;
+  showToast('Login credentials updated');
 }
 
-function StatusBadge({status}){
-  const map={Pending:'bg-yellow-100 text-yellow-800',Preparing:'bg-blue-100 text-blue-800',Ready:'bg-green-100 text-green-800',Served:'bg-purple-100 text-purple-800',Completed:'bg-gray-100 text-gray-700',Cancelled:'bg-red-100 text-red-800'};
-  return <span className={`px-2 py-0.5 rounded text-xs font-medium ${map[status]||''}`}>{status}</span>;
+/* ============================================================
+   RECEIPT / PRINT (80mm thermal, auto-height, auto-cutter friendly)
+============================================================ */
+function openReceiptModal(orderOrId){
+  const order = typeof orderOrId === 'string' ? orders.find(o=>o.id===orderOrId) : orderOrId;
+  if(!order) return;
+  document.getElementById('receiptPreview').innerHTML = buildReceiptHTML(order);
+  document.getElementById('receiptModalOverlay').classList.remove('hidden');
 }
+function closeReceiptModal(){ document.getElementById('receiptModalOverlay').classList.add('hidden'); }
 
-// ============ NEW ORDER ============
-function NewOrder({goto}){
-  const [search,setSearch]=useState('');
-  const [cat,setCat]=useState('All');
-  const [cart,setCart]=useState([]);
-  const [receipt,setReceipt]=useState(null);
-  const [orderType,setOrderType]=useState('Dine In');
-  const [tableNumber,setTableNumber]=useState('');
-  const [customerName,setCustomerName]=useState('');
-  const [customerPhone,setCustomerPhone]=useState('');
-  const [paymentMethod,setPaymentMethod]=useState('Cash');
-  const [notes,setNotes]=useState('');
-  const [discount,setDiscount]=useState(0);
-  const [menuVersion,setMenuVersion]=useState(0);
-  const menu=DB.get('menu',[]);
-
-  const cats=['All',...new Set(menu.filter(i=>i.is_available!==false).map(i=>i.category))];
-  const filtered=menu.filter(i=>i.is_available!==false&&(cat==='All'||i.category===cat)&&(!search||i.name.toLowerCase().includes(search.toLowerCase())));
-
-  const addToCart=(item)=>setCart(c=>{const e=c.find(x=>x.item_id===item.id);if(e)return c.map(x=>x.item_id===item.id?{...x,quantity:x.quantity+1}:x);return [...c,{item_id:item.id,name:item.name,price:item.price,quantity:1}];});
-  const updateQty=(id,delta)=>setCart(c=>c.map(x=>x.item_id===id?{...x,quantity:x.quantity+delta}:x).filter(x=>x.quantity>0));
-  const removeItem=(id)=>setCart(c=>c.filter(x=>x.item_id!==id));
-
-  const subtotal=cart.reduce((s,i)=>s+i.price*i.quantity,0);
-  const tax=subtotal*0.05;
-  const total=Math.max(0,subtotal+tax-(discount||0));
-
-  const placeOrder=()=>{
-    if(cart.length===0)return;
-    const orders=DB.get('orders',[]);
-    const order={
-      id:'o'+Date.now(),
-      order_number:'ZB-'+Math.floor(Math.random()*9000+1000),
-      order_type:orderType,
-      table_number:orderType==='Dine In'?tableNumber:'',
-      customer_name:customerName,
-      customer_phone:customerPhone,
-      items:cart.map(c=>({item_id:c.item_id,name:c.name,price:c.price,quantity:c.quantity,total:c.price*c.quantity})),
-      subtotal,tax,discount:discount||0,total,
-      payment_method:paymentMethod,
-      status:orderType==='Dine In'?'Pending':'Completed',
-      notes,
-      created_date:new Date().toISOString()
-    };
-    orders.push(order);
-    DB.set('orders',orders);
-    // mark table occupied
-    if(orderType==='Dine In'&&tableNumber){
-      const tables=DB.get('tables',[]).map(t=>t.table_number===tableNumber?{...t,status:'Occupied',current_order_id:order.id}:t);
-      DB.set('tables',tables);
-    }
-    setCart([]);setCustomerName('');setCustomerPhone('');setTableNumber('');setNotes('');setDiscount(0);
-    setReceipt(order);
-  };
-
-  return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      <div className="flex-1 min-w-0">
-        <h1 className="text-2xl font-bold mb-1">New Order</h1>
-        <p className="text-mutedfg text-sm mb-4">Select items to create an order</p>
-        <div className="relative mb-4">
-          <Icon.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mutedfg"/>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search menu items..." className="w-full pl-9 pr-3 py-2 border border-border rounded-lg bg-white"/>
-        </div>
-        <div className="flex gap-2 overflow-x-auto mb-4 pb-1">
-          {cats.map(c=>(
-            <button key={c} onClick={()=>setCat(c)} className={`px-4 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition ${cat===c?'bg-primary text-white':'bg-white border border-border hover:bg-muted'}`}>{c}</button>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filtered.map(item=>(
-            <button key={item.id} onClick={()=>addToCart(item)} className="bg-white rounded-xl border border-border p-3 text-left hover:shadow-md hover:border-primary transition group">
-              <div className="aspect-square bg-muted rounded-lg mb-2 flex items-center justify-center text-3xl">{item.is_veg?'🥗':'🍖'}</div>
-              <div className="flex items-center gap-1 mb-1"><span className={`w-3 h-3 border-2 ${item.is_veg?'border-green-600':'border-red-600'}`} style={{background:item.is_veg?'#22c55e':'#ef4444'}}></span><span className="text-xs text-mutedfg">{item.is_veg?'Veg':'Non-Veg'}</span></div>
-              <p className="font-semibold text-sm truncate">{item.name}</p>
-              <p className="text-xs text-mutedfg line-clamp-1">{item.description}</p>
-              <p className="font-bold text-primary mt-1">₹{item.price}</p>
-            </button>
-          ))}
-        </div>
-        {filtered.length===0&&<p className="text-center text-mutedfg py-12">No items found</p>}
-      </div>
-
-      <div className="w-full lg:w-96">
-        <div className="bg-white rounded-xl border border-border shadow-sm flex flex-col h-full">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><Icon.Cart className="w-5 h-5 text-primary"/>Current Order</h2>
-            {cart.length>0&&<button onClick={()=>setCart([])} className="text-sm text-destructive hover:underline">Clear</button>}
-          </div>
-          <div className="p-4 space-y-3 flex-1 overflow-y-auto">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-mutedfg block mb-1">Order Type</label>
-                <select value={orderType} onChange={e=>setOrderType(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm bg-white">
-                  <option>Dine In</option><option>Takeaway</option><option>Delivery</option>
-                </select>
-              </div>
-              {orderType==='Dine In'&&<div><label className="text-xs text-mutedfg block mb-1">Table #</label><input value={tableNumber} onChange={e=>setTableNumber(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm"/></div>}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><label className="text-xs text-mutedfg block mb-1">Customer Name</label><input value={customerName} onChange={e=>setCustomerName(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm"/></div>
-              <div><label className="text-xs text-mutedfg block mb-1">Phone</label><input value={customerPhone} onChange={e=>setCustomerPhone(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm"/></div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><label className="text-xs text-mutedfg block mb-1">Payment</label><select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm bg-white"><option>Cash</option><option>Card</option><option>UPI</option><option>Online</option></select></div>
-              <div><label className="text-xs text-mutedfg block mb-1">Discount ₹</label><input type="number" min="0" value={discount} onChange={e=>setDiscount(Number(e.target.value))} className="w-full px-2 py-1.5 border border-border rounded-md text-sm"/></div>
-            </div>
-            <hr className="border-border"/>
-            {cart.length===0?<div className="text-center py-8 text-mutedfg"><Icon.Cart className="w-10 h-10 mx-auto mb-2 opacity-30"/><p className="text-sm">No items added yet</p></div>:cart.map(item=>(
-              <div key={item.item_id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
-                <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{item.name}</p><p className="text-xs text-mutedfg">₹{item.price} each</p></div>
-                <div className="flex items-center gap-1">
-                  <button onClick={()=>updateQty(item.item_id,-1)} className="w-6 h-6 border border-border rounded flex items-center justify-center"><Icon.Minus className="w-3 h-3"/></button>
-                  <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                  <button onClick={()=>updateQty(item.item_id,1)} className="w-6 h-6 border border-border rounded flex items-center justify-center"><Icon.Plus className="w-3 h-3"/></button>
-                </div>
-                <span className="text-sm font-semibold w-14 text-right">₹{(item.price*item.quantity).toFixed(0)}</span>
-                <button onClick={()=>removeItem(item.item_id)} className="text-destructive"><Icon.Trash className="w-4 h-4"/></button>
-              </div>
-            ))}
-            {cart.length>0&&<div><label className="text-xs text-mutedfg block mb-1">Special Instructions</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-md text-sm h-14 resize-none"/></div>}
-          </div>
-          {cart.length>0&&(
-            <div className="p-4 border-t space-y-2">
-              <div className="flex justify-between text-sm text-mutedfg"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
-              <div className="flex justify-between text-sm text-mutedfg"><span>Tax (5%)</span><span>₹{tax.toFixed(2)}</span></div>
-              {discount>0&&<div className="flex justify-between text-sm text-green-600"><span>Discount</span><span>-₹{discount.toFixed(2)}</span></div>}
-              <div className="flex justify-between font-bold text-base"><span>Total</span><span>₹{total.toFixed(2)}</span></div>
-              <button onClick={placeOrder} className="w-full bg-primary text-white py-2.5 rounded-lg font-semibold hover:bg-orange-600 transition">Place Order • ₹{total.toFixed(2)}</button>
-            </div>
-          )}
-        </div>
-      </div>
-      {receipt&&<ReceiptModal order={receipt} onClose={()=>{setReceipt(null);goto('active');}}/>}
-    </div>
-  );
+function buildReceiptHTML(o){
+  const rows = o.items.map(i=>`
+    <tr><td colspan="2">${i.name}</td></tr>
+    <tr><td>${i.qty} x ${money(i.price)}</td><td style="text-align:right;">${money(i.qty*i.price)}</td></tr>
+  `).join('');
+  return `
+    <div class="r-center r-bold" style="font-size:14px;">${settings.name.toUpperCase()}</div>
+    <div class="r-center">Restaurant &amp; Cafe</div>
+    ${settings.fssai? `<div class="r-center">FSSAI Lic. No.: ${settings.fssai}</div>`:''}
+    <hr>
+    <div class="r-row"><span>Order #:</span><span>${o.id}</span></div>
+    <div class="r-row"><span>Date:</span><span>${fmtDate(o.date)}</span></div>
+    <div class="r-row"><span>Type:</span><span>${o.type}</span></div>
+    <div class="r-row"><span>Payment:</span><span>${o.payment}</span></div>
+    ${o.customer && o.customer!=='-' ? `<div class="r-row"><span>Customer:</span><span>${o.customer}</span></div>`:''}
+    <hr>
+    <table>${rows}</table>
+    <hr>
+    <div class="r-row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    <div class="r-row"><span>GST / Tax</span><span>${money(o.tax)}</span></div>
+    ${o.discount>0? `<div class="r-row"><span>Discount</span><span>-${money(o.discount)}</span></div>`:''}
+    <div class="r-row r-bold" style="font-size:13.5px;margin-top:4px;"><span>GRAND TOTAL</span><span>${money(o.total)}</span></div>
+    <hr>
+    <div class="r-center">We hope you enjoy your meal.</div>
+    <div class="r-center">Thanks for ordering from ${settings.name}!</div>
+    <div class="r-center" style="font-size:10.5px;margin-top:4px;">*** Prices inclusive of all taxes ***</div>
+    <div class="r-center" style="margin-top:8px;font-size:10.5px;">⚡ Powered by Zaiqa Box POS</div>
+  `;
 }
+function printReceipt(){ window.print(); }
 
-// ============ RECEIPT ============
-const THANK={'Dine In':['Thank you for dining with us! We hope to see you again soon.','It was a pleasure serving you. Come back soon!'],'Takeaway':['Thank you for your order! Enjoy your meal.','Thanks for choosing Zaiqa Box. Bon appétit!'],'Delivery':['Thank you for ordering! Enjoy your delivery.','We hope you enjoy your meal. Thanks for ordering from Zaiqa Box!']};
-function getThank(t){const m=THANK[t]||THANK['Dine In'];return m[Math.floor(Math.random()*m.length)];}
-const FSSAI='10020042012345';
-function ReceiptModal({order,onClose}){
-  const ref=useRef();
-  const thank=getThank(order.order_type);
-  const printReceipt=()=>{
-    const w=window.open('','_blank','width=400,height=600');
-    w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${order.order_number}</title><meta charset="UTF-8"><style>@page{size:80mm auto;margin:0}html,body{height:auto;min-height:0}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:1.4;width:80mm;max-width:80mm;margin:0 auto;padding:8px 6px 6px 6px;color:#000;background:#fff}.center{text-align:center}.bold{font-weight:700}.big{font-size:17px;font-weight:800;letter-spacing:1.2px}.dashed{border-top:1px dashed #000;margin:6px 0}.solid{border-top:2px solid #000;margin:6px 0}.row{display:flex;justify-content:space-between;margin:2px 0}.total-row{display:flex;justify-content:space-between;font-weight:700;font-size:13px;padding:3px 0}.grand-total{font-size:15px;font-weight:800;padding:4px 0}.order-num{font-weight:800;font-size:13px}.footer{text-align:center;margin-top:8px;font-size:11px;line-height:1.5}.watermark{font-size:10px;font-weight:600;text-align:center;color:#333;margin-top:10px;border-top:1px dotted #999;padding-top:6px}.watermark a{color:#333;text-decoration:none;font-weight:700}</style></head><body>
-<div class="center"><div class="big">ZAIQA BOX</div><div style="font-size:11px;margin-top:2px;font-weight:500">Restaurant & Cafe</div><div style="font-size:10px;margin-top:3px;color:#555">FSSAI Lic. No.: ${FSSAI}</div></div>
-<div class="dashed"></div>
-<div class="row"><span>Order #:</span><span class="order-num">${order.order_number}</span></div>
-<div class="row"><span>Date:</span><span class="bold">${toIST(order.created_date)}</span></div>
-<div class="row"><span>Type:</span><span class="bold">${order.order_type}</span></div>
-${order.table_number?`<div class="row"><span>Table:</span><span class="bold">${order.table_number}</span></div>`:''}
-${order.customer_name?`<div class="row"><span>Customer:</span><span class="bold">${order.customer_name}</span></div>`:''}
-${order.payment_method?`<div class="row"><span>Payment:</span><span class="bold">${order.payment_method}</span></div>`:''}
-<div class="dashed"></div>
-${order.items.map(i=>`<div class="row"><span style="font-weight:500">${i.name} x${i.quantity}</span><span style="font-weight:600">₹${(i.price*i.quantity).toFixed(2)}</span></div>`).join('')}
-<div class="dashed"></div>
-<div class="row"><span>Subtotal</span><span>₹${order.subtotal.toFixed(2)}</span></div>
-<div class="row"><span>GST (5%)</span><span>₹${order.tax.toFixed(2)}</span></div>
-${order.discount>0?`<div class="row"><span>Discount</span><span>-₹${order.discount.toFixed(2)}</span></div>`:''}
-<div class="solid"></div>
-<div class="total-row grand-total"><span>GRAND TOTAL</span><span>₹${order.total.toFixed(2)}</span></div>
-<div class="solid"></div>
-<div class="footer"><div>${thank}</div><div style="margin-top:4px">*** Prices inclusive of all taxes ***</div></div>
-<div class="watermark">Zaiqa Box POS &mdash; Powered by <a href="https://www.faizcodex.com">www.faizcodex.com</a></div>
-</body></html>`);
-    w.document.close();setTimeout(()=>w.print(),300);
-  };
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 no-print" onClick={onClose}>
-      <div className="bg-white rounded-xl max-w-sm w-full max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-        <div className="p-4 border-b flex justify-between items-center">
-          <h2 className="font-semibold">Receipt Preview</h2>
-          <div className="flex gap-2"><button onClick={printReceipt} className="px-3 py-1.5 border border-border rounded-md text-sm flex items-center gap-1"><Icon.Printer className="w-4 h-4"/>Print</button><button onClick={onClose} className="p-1.5"><Icon.X className="w-4 h-4"/></button></div>
-        </div>
-        <div className="p-4 font-mono text-xs">
-          <div className="text-center"><p className="text-base font-bold tracking-widest">ZAIQA BOX</p><p className="text-[10px]">Restaurant & Cafe</p><p className="text-[9px] text-gray-500">FSSAI Lic. No.: {FSSAI}</p></div>
-          <div className="border-t border-dashed border-gray-400 my-2"/>
-          <div className="space-y-0.5">
-            <div className="flex justify-between"><span>Order #:</span><span className="font-bold">{order.order_number}</span></div>
-            <div className="flex justify-between"><span>Date:</span><span>{toIST(order.created_date)}</span></div>
-            <div className="flex justify-between"><span>Type:</span><span>{order.order_type}</span></div>
-            {order.table_number&&<div className="flex justify-between"><span>Table:</span><span>{order.table_number}</span></div>}
-            {order.customer_name&&<div className="flex justify-between"><span>Customer:</span><span>{order.customer_name}</span></div>}
-            {order.payment_method&&<div className="flex justify-between"><span>Payment:</span><span>{order.payment_method}</span></div>}
-          </div>
-          <div className="border-t border-dashed border-gray-400 my-2"/>
-          {order.items.map((i,idx)=>(<div key={idx} className="flex text-[10px]"><span className="flex-1">{i.name} x{i.quantity}</span><span>₹{(i.price*i.quantity).toFixed(2)}</span></div>))}
-          <div className="border-t border-dashed border-gray-400 my-2"/>
-          <div className="space-y-0.5">
-            <div className="flex justify-between"><span>Subtotal</span><span>₹{order.subtotal.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span>GST (5%)</span><span>₹{order.tax.toFixed(2)}</span></div>
-            {order.discount>0&&<div className="flex justify-between text-green-700"><span>Discount</span><span>-₹{order.discount.toFixed(2)}</span></div>}
-          </div>
-          <div className="border-t border-gray-400 my-1"/>
-          <div className="flex justify-between font-bold text-sm"><span>GRAND TOTAL</span><span>₹{order.total.toFixed(2)}</span></div>
-          <div className="border-t border-gray-400 my-1"/>
-          <div className="text-center text-[10px] mt-2"><p>{thank}</p><p className="text-[9px] text-gray-500 mt-1">*** Prices inclusive of all taxes ***</p></div>
-          <div className="border-t border-dotted border-gray-400 mt-3 pt-2 text-center text-[11px] font-semibold text-gray-600">Zaiqa Box POS — Powered by <span className="font-bold">www.fascodex.com</span></div>
-        </div>
-      </div>
-    </div>
-  );
+/* ============================================================
+   TOAST
+============================================================ */
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), 2600);
 }
-
-// ============ ACTIVE ORDERS ============
-const STATUS_FLOW=['Pending','Preparing','Ready','Served','Completed'];
-function ActiveOrders({goto}){
-  const [filter,setFilter]=useState('All');
-  const [receipt,setReceipt]=useState(null);
-  const [tick,setTick]=useState(0);
-  const orders=DB.get('orders',[]).slice().reverse();
-
-  const counts={All:orders.length,Pending:0,Preparing:0,Ready:0,Served:0};
-  orders.forEach(o=>{if(counts[o.status]!==undefined)counts[o.status]++;});
-  const filtered=filter==='All'?orders:orders.filter(o=>o.status===filter);
-
-  const advance=(id)=>{
-    const all=DB.get('orders',[]).map(o=>{if(o.id===id){const idx=STATUS_FLOW.indexOf(o.status);return{...o,status:STATUS_FLOW[Math.min(idx+1,STATUS_FLOW.length-1)]};}return o;});
-    DB.set('orders',all);setTick(t=>t+1);
-    // free table when completed
-    const completed=all.find(o=>o.id===id&&o.status==='Completed');
-    if(completed&&completed.table_number){const tbs=DB.get('tables',[]).map(t=>t.current_order_id===id?{...t,status:'Available',current_order_id:null}:t);DB.set('tables',tbs);}
-  };
-  const cancel=(id)=>{const all=DB.get('orders',[]).map(o=>o.id===id?{...o,status:'Cancelled'}:o);DB.set('orders',all);setTick(t=>t+1);
-    const o=orders.find(x=>x.id===id);if(o&&o.table_number){const tbs=DB.get('tables',[]).map(t=>t.table_number===o.table_number?{...t,status:'Available',current_order_id:null}:t);DB.set('tables',tbs);}};
-
-  return (
-    <div>
-      <h1 className="text-2xl font-bold mb-1">Active Orders</h1>
-      <p className="text-mutedfg text-sm mb-4">Manage and track current orders</p>
-      <div className="flex gap-2 mb-4 overflow-x-auto">
-        {['All','Pending','Preparing','Ready','Served'].map(s=>(
-          <button key={s} onClick={()=>setFilter(s)} className={`px-4 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap ${filter===s?'bg-primary text-white':'bg-white border border-border hover:bg-muted'}`}>{s} ({counts[s]||0})</button>
-        ))}
-      </div>
-      {filtered.length===0?<div className="text-center py-16 text-mutedfg"><Icon.Cart className="w-16 h-16 mx-auto mb-3 opacity-20"/><p>No active orders</p></div>:(
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(o=>(
-            <div key={o.id} className="bg-white rounded-xl border border-border p-4 shadow-sm">
-              <div className="flex justify-between items-start mb-2">
-                <div><p className="font-bold">{o.order_number}</p><p className="text-xs text-mutedfg">{toIST(o.created_date)}</p></div>
-                <StatusBadge status={o.status}/>
-              </div>
-              <div className="text-sm space-y-0.5 mb-3">
-                <p><span className="text-mutedfg">Type:</span> {o.order_type}</p>
-                {o.table_number&&<p><span className="text-mutedfg">Table:</span> {o.table_number}</p>}
-                {o.customer_name&&<p><span className="text-mutedfg">Customer:</span> {o.customer_name}</p>}
-              </div>
-              <div className="border-t border-border pt-2 mb-3 space-y-1">
-                {o.items.map((i,idx)=><div key={idx} className="flex justify-between text-sm"><span>{i.name} x{i.quantity}</span><span>₹{(i.price*i.quantity).toFixed(0)}</span></div>)}
-              </div>
-              <div className="flex justify-between font-bold mb-3"><span>Total</span><span>₹{o.total.toFixed(0)}</span></div>
-              <div className="flex gap-2">
-                <button onClick={()=>setReceipt(o)} className="flex-1 px-3 py-1.5 border border-border rounded-md text-sm hover:bg-muted">Receipt</button>
-                {o.status!=='Completed'&&o.status!=='Cancelled'&&<button onClick={()=>advance(o.id)} className="flex-1 px-3 py-1.5 bg-primary text-white rounded-md text-sm">Advance →</button>}
-                {o.status!=='Cancelled'&&o.status!=='Completed'&&<button onClick={()=>cancel(o.id)} className="px-3 py-1.5 text-destructive border border-destructive rounded-md text-sm">Cancel</button>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {receipt&&<ReceiptModal order={receipt} onClose={()=>setReceipt(null)}/>}
-    </div>
-  );
-}
-
-// ============ ORDER HISTORY ============
-function OrderHistory(){
-  const [search,setSearch]=useState('');
-  const [receipt,setReceipt]=useState(null);
-  const orders=DB.get('orders',[]).slice().reverse();
-  const filtered=orders.filter(o=>!search||o.order_number.toLowerCase().includes(search.toLowerCase())||(o.customer_name||'').toLowerCase().includes(search.toLowerCase())||(o.customer_phone||'').includes(search));
-  return (
-    <div>
-      <h1 className="text-2xl font-bold mb-1">Order History</h1>
-      <p className="text-mutedfg text-sm mb-4">All past orders</p>
-      <div className="relative mb-4">
-        <Icon.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mutedfg"/>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search order #, customer, phone..." className="w-full pl-9 pr-3 py-2 border border-border rounded-lg bg-white"/>
-      </div>
-      <div className="bg-white rounded-xl border border-border shadow-sm overflow-x-auto">
-        {filtered.length===0?<p className="text-center text-mutedfg py-12">No orders found</p>:(
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-border text-left text-mutedfg">
-              <th className="py-3 px-4">Order #</th><th className="py-3 px-4">Type</th><th className="py-3 px-4">Customer</th><th className="py-3 px-4">Items</th><th className="py-3 px-4">Total</th><th className="py-3 px-4">Payment</th><th className="py-3 px-4">Status</th><th className="py-3 px-4">Date</th><th className="py-3 px-4"></th>
-            </tr></thead>
-            <tbody>
-              {filtered.map(o=>(
-                <tr key={o.id} className="border-b border-border/50 hover:bg-muted/30">
-                  <td className="py-3 px-4 font-medium">{o.order_number}</td>
-                  <td className="py-3 px-4">{o.order_type}</td>
-                  <td className="py-3 px-4">{o.customer_name||'-'}</td>
-                  <td className="py-3 px-4">{o.items.length}</td>
-                  <td className="py-3 px-4 font-semibold">₹{o.total.toFixed(0)}</td>
-                  <td className="py-3 px-4">{o.payment_method||'-'}</td>
-                  <td className="py-3 px-4"><StatusBadge status={o.status}/></td>
-                  <td className="py-3 px-4 text-mutedfg text-xs">{toIST(o.created_date)}</td>
-                  <td className="py-3 px-4"><button onClick={()=>setReceipt(o)} className="text-primary text-xs hover:underline">View</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-      {receipt&&<ReceiptModal order={receipt} onClose={()=>setReceipt(null)}/>}
-    </div>
-  );
-}
-
-// ============ MENU MANAGEMENT ============
-function MenuManagement(){
-  const [items,setItems]=useState(DB.get('menu',[]));
-  const [search,setSearch]=useState('');
-  const [cat,setCat]=useState('All');
-  const [editing,setEditing]=useState(null);
-  const [showForm,setShowForm]=useState(false);
-
-  const save=(item)=>{
-    const menu=DB.get('menu',[]);
-    if(item.id){const idx=menu.findIndex(m=>m.id===item.id);if(idx>=0)menu[idx]=item;}else{menu.push({...item,id:'m'+Date.now()});}
-    DB.set('menu',menu);setItems(DB.get('menu',[]));setShowForm(false);setEditing(null);
-  };
-  const del=(id)=>{if(!confirm('Delete this item?'))return;const menu=DB.get('menu',[]).filter(m=>m.id!==id);DB.set('menu',menu);setItems(DB.get('menu',[]));};
-  const toggleAvail=(id)=>{const menu=DB.get('menu',[]).map(m=>m.id===id?{...m,is_available:!m.is_available}:m);DB.set('menu',menu);setItems(DB.get('menu',[]));};
-
-  const cats=['All',...new Set(items.map(i=>i.category))];
-  const filtered=items.filter(i=>(cat==='All'||i.category===cat)&&(!search||i.name.toLowerCase().includes(search.toLowerCase())));
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <div><h1 className="text-2xl font-bold mb-1">Menu Management</h1><p className="text-mutedfg text-sm">Add, edit, remove menu items</p></div>
-        <button onClick={()=>{setEditing(null);setShowForm(true);}} className="bg-primary text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"><Icon.Plus className="w-4 h-4"/>Add Item</button>
-      </div>
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="relative flex-1"><Icon.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mutedfg"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..." className="w-full pl-9 pr-3 py-2 border border-border rounded-lg bg-white"/></div>
-        <select value={cat} onChange={e=>setCat(e.target.value)} className="px-3 py-2 border border-border rounded-lg bg-white"><option>All</option>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select>
-      </div>
-      <div className="bg-white rounded-xl border border-border shadow-sm overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead><tr className="border-b border-border text-left text-mutedfg"><th className="py-3 px-4">Item</th><th className="py-3 px-4">Category</th><th className="py-3 px-4">Price</th><th className="py-3 px-4">Veg</th><th className="py-3 px-4">Available</th><th className="py-3 px-4"></th></tr></thead>
-          <tbody>
-            {filtered.map(i=>(
-              <tr key={i.id} className="border-b border-border/50">
-                <td className="py-3 px-4 font-medium">{i.name}</td>
-                <td className="py-3 px-4">{i.category}</td>
-                <td className="py-3 px-4 font-semibold">₹{i.price}</td>
-                <td className="py-3 px-4"><span className={`inline-block w-4 h-4 border-2 ${i.is_veg?'border-green-600':'border-red-600'}`} style={{background:i.is_veg?'#22c55e':'#ef4444'}}></span></td>
-                <td className="py-3 px-4"><button onClick={()=>toggleAvail(i.id)} className={`px-2 py-0.5 rounded text-xs ${i.is_available?'bg-green-100 text-green-800':'bg-gray-200 text-gray-600'}`}>{i.is_available?'Available':'Off'}</button></td>
-                <td className="py-3 px-4"><div className="flex gap-2"><button onClick={()=>{setEditing(i);setShowForm(true);}} className="text-blue-600 text-xs">Edit</button><button onClick={()=>del(i.id)} className="text-destructive text-xs">Delete</button></div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {showForm&&<MenuForm item={editing} onSave={save} onClose={()=>{setShowForm(false);setEditing(null);}}/>}
-    </div>
-  );
-}
-
-function MenuForm({item,onSave,onClose}){
-  const [f,setF]=useState(item||{name:'',description:'',price:'',category:'Starters',is_available:true,is_veg:false});
-  const submit=(e)=>{e.preventDefault();onSave({...f,price:Number(f.price)});};
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={e=>e.stopPropagation()}>
-        <h2 className="font-semibold mb-4">{item?'Edit Item':'Add Item'}</h2>
-        <form onSubmit={submit} className="space-y-3">
-          <input required value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="Name" className="w-full px-3 py-2 border border-border rounded-lg"/>
-          <input value={f.description} onChange={e=>setF({...f,description:e.target.value})} placeholder="Description" className="w-full px-3 py-2 border border-border rounded-lg"/>
-          <input required type="number" value={f.price} onChange={e=>setF({...f,price:e.target.value})} placeholder="Price" className="w-full px-3 py-2 border border-border rounded-lg"/>
-          <select value={f.category} onChange={e=>setF({...f,category:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg bg-white">{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={f.is_veg} onChange={e=>setF({...f,is_veg:e.target.checked})}/>Vegetarian</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={f.is_available} onChange={e=>setF({...f,is_available:e.target.checked})}/>Available</label>
-          </div>
-          <div className="flex gap-2 pt-2"><button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg">Cancel</button><button type="submit" className="flex-1 px-4 py-2 bg-primary text-white rounded-lg">Save</button></div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ============ TABLES ============
-function Tables(){
-  const [tables,setTables]=useState(DB.get('tables',[]));
-  const [editing,setEditing]=useState(null);
-  const [showForm,setShowForm]=useState(false);
-  const colors={Available:'border-green-500 bg-green-50',Occupied:'border-red-500 bg-red-50',Reserved:'border-yellow-500 bg-yellow-50'};
-  const save=(t)=>{const all=DB.get('tables',[]);if(t.id){const idx=all.findIndex(x=>x.id===t.id);if(idx>=0)all[idx]=t;}else{all.push({...t,id:'t'+Date.now()});}DB.set('tables',all);setTables(DB.get('tables',[]));setShowForm(false);setEditing(null);};
-  const del=(id)=>{if(!confirm('Delete this table?'))return;DB.set('tables',DB.get('tables',[]).filter(t=>t.id!==id));setTables(DB.get('tables',[]));};
-  const cycle=(t)=>{const ns=t.status==='Available'?'Occupied':t.status==='Occupied'?'Reserved':'Available';const all=DB.get('tables',[]).map(x=>x.id===t.id?{...x,status:ns}:x);DB.set('tables',all);setTables(DB.get('tables',[]));};
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <div><h1 className="text-2xl font-bold mb-1">Tables</h1><p className="text-mutedfg text-sm">{tables.length} tables</p></div>
-        <button onClick={()=>{setEditing(null);setShowForm(true);}} className="bg-primary text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"><Icon.Plus className="w-4 h-4"/>Add Table</button>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {tables.map(t=>(
-          <div key={t.id} className={`bg-white rounded-xl border-2 p-4 shadow-sm ${colors[t.status]}`}>
-            <div className="flex justify-between items-start mb-2">
-              <div><p className="font-bold text-lg">Table {t.table_number}</p><p className="text-xs text-mutedfg">Seats {t.capacity}</p></div>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.status==='Available'?'bg-green-200 text-green-800':t.status==='Occupied'?'bg-red-200 text-red-800':'bg-yellow-200 text-yellow-800'}`}>{t.status}</span>
-            </div>
-            <div className="flex gap-1 mt-3">
-              <button onClick={()=>cycle(t)} className="flex-1 text-xs px-2 py-1 border border-border rounded">Toggle</button>
-              <button onClick={()=>{setEditing(t);setShowForm(true);}} className="text-xs px-2 py-1 border border-border rounded">Edit</button>
-              <button onClick={()=>del(t.id)} className="text-destructive text-xs px-2 py-1 border border-destructive rounded">Del</button>
-            </div>
-          </div>
-        ))}
-      </div>
-      {showForm&&<TableForm table={editing} onSave={save} onClose={()=>{setShowForm(false);setEditing(null);}}/>}
-    </div>
-  );
-}
-function TableForm({table,onSave,onClose}){
-  const [f,setF]=useState(table||{table_number:'',capacity:4,status:'Available'});
-  const submit=(e)=>{e.preventDefault();onSave({...f,capacity:Number(f.capacity)});};
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={e=>e.stopPropagation()}>
-        <h2 className="font-semibold mb-4">{table?'Edit Table':'Add Table'}</h2>
-        <form onSubmit={submit} className="space-y-3">
-          <input required value={f.table_number} onChange={e=>setF({...f,table_number:e.target.value})} placeholder="Table Number" className="w-full px-3 py-2 border border-border rounded-lg"/>
-          <input required type="number" value={f.capacity} onChange={e=>setF({...f,capacity:e.target.value})} placeholder="Capacity" className="w-full px-3 py-2 border border-border rounded-lg"/>
-          <select value={f.status} onChange={e=>setF({...f,status:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg bg-white"><option>Available</option><option>Occupied</option><option>Reserved</option></select>
-          <div className="flex gap-2 pt-2"><button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg">Cancel</button><button type="submit" className="flex-1 px-4 py-2 bg-primary text-white rounded-lg">Save</button></div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ============ SETTINGS ============
-function Settings(){
-  const [s,setS]=useState(DB.get('settings',{}));
-  const [saved,setSaved]=useState(false);
-  const save=(e)=>{e.preventDefault();DB.set('settings',s);setSaved(true);setTimeout(()=>setSaved(false),2000);};
-  return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-1">Settings</h1>
-      <p className="text-mutedfg text-sm mb-6">Restaurant configuration</p>
-      <form onSubmit={save} className="bg-white rounded-xl border border-border p-6 shadow-sm space-y-4">
-        <div><label className="text-sm font-medium block mb-1">Restaurant Name</label><input value={s.restaurant_name||''} onChange={e=>setS({...s,restaurant_name:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
-        <div><label className="text-sm font-medium block mb-1">Address</label><input value={s.address||''} onChange={e=>setS({...s,address:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
-        <div><label className="text-sm font-medium block mb-1">Phone</label><input value={s.phone||''} onChange={e=>setS({...s,phone:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
-        <div><label className="text-sm font-medium block mb-1">FSSAI License No.</label><input value={s.fssai||''} onChange={e=>setS({...s,fssai:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="text-sm font-medium block mb-1">Tax Rate (%)</label><input type="number" value={s.tax_rate||0} onChange={e=>setS({...s,tax_rate:Number(e.target.value)})} className="w-full px-3 py-2 border border-border rounded-lg"/></div>
-          <div><label className="text-sm font-medium block mb-1">Currency</label><select value={s.currency||'INR'} onChange={e=>setS({...s,currency:e.target.value})} className="w-full px-3 py-2 border border-border rounded-lg bg-white"><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></div>
-        </div>
-        <div className="flex gap-2 pt-2">
-          <button type="submit" className="px-6 py-2 bg-primary text-white rounded-lg font-semibold">Save Settings</button>
-          {saved&&<span className="text-green-600 text-sm self-center">✓ Saved</span>}
-        </div>
-      </form>
-      <div className="mt-6 bg-white rounded-xl border border-border p-6 shadow-sm">
-        <h2 className="font-semibold mb-2">Data Management</h2>
-        <p className="text-sm text-mutedfg mb-3">All data is stored locally in your browser (localStorage).</p>
-        <div className="flex gap-2">
-          <button onClick={()=>{const data={menu:DB.get('menu'),orders:DB.get('orders'),tables:DB.get('tables'),settings:DB.get('settings')};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='zaiqabox-backup.json';a.click();}} className="px-4 py-2 border border-border rounded-lg text-sm">Export Data</button>
-          <button onClick={()=>{if(confirm('Reset ALL data? This cannot be undone.')){localStorage.removeItem('zb_menu');localStorage.removeItem('zb_orders');localStorage.removeItem('zb_tables');location.reload();}}} className="px-4 py-2 border border-destructive text-destructive rounded-lg text-sm">Reset All Data</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ APP ============
-function App(){
-  const [page,setPage]=useState('dashboard');
-  return (
-    <PosAuthGuard>
-      <div className="min-h-screen bg-background">
-        <Sidebar page={page} setPage={setPage}/>
-        <main className="ml-0 lg:ml-60 p-4 md:p-6">
-          {page==='dashboard'&&<Dashboard goto={setPage}/>}
-          {page==='new'&&<NewOrder goto={setPage}/>}
-          {page==='active'&&<ActiveOrders goto={setPage}/>}
-          {page==='history'&&<OrderHistory/>}
-          {page==='menu'&&<MenuManagement/>}
-          {page==='tables'&&<Tables/>}
-          {page==='settings'&&<Settings/>}
-        </main>
-      </div>
-    </PosAuthGuard>
-  );
-}
-
-createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
